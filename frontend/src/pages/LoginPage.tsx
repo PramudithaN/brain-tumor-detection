@@ -72,8 +72,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({ user }) => {
 
   return (
     <Container maxWidth="sm" sx={{ py: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 4 }}>
-        <PsychologyIcon color="primary" sx={{ fontSize: 40 }} />
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4 }}>
+        <Box
+          component="img"
+          src="/neuroLogo.png"
+          alt="NeuroScanAI Logo"
+          sx={{
+            height: 48,
+            width: 48,
+            borderRadius: '25%',
+            objectFit: 'cover',
+            border: '1px solid #3D4147'
+          }}
+        />
         <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-0.5px' }}>
           NeuroScan<Box component="span" sx={{ color: 'secondary.main' }}>AI</Box>
         </Typography>

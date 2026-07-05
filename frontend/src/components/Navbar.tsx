@@ -25,8 +25,19 @@ export const Navbar: React.FC<NavbarProps> = ({ user }) => {
       <Container maxWidth="lg">
         <Toolbar disableGutters sx={{ justifyContent: 'space-between' }}>
           {/* Logo Section */}
-          <Box component={RouterLink} to="/" sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', gap: 1 }}>
-            <PsychologyIcon sx={{ fontSize: 32, color: '#5CC8FF' }} />
+          <Box component={RouterLink} to="/" sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', gap: 1.5 }}>
+            <Box
+              component="img"
+              src="/neuroLogo.png"
+              alt="NeuroScanAI Logo"
+              sx={{
+                height: 32,
+                width: 32,
+                borderRadius: '25%',
+                objectFit: 'cover',
+                border: '1px solid #3D4147'
+              }}
+            />
             <Typography variant="h6" component="div" sx={{ fontFamily: '"Space Grotesk", sans-serif', fontWeight: 700, letterSpacing: '-0.5px', color: '#F2F1ED' }}>
               NeuroScan<Box component="span" sx={{ color: '#FF5A46' }}>AI</Box>
             </Typography>
