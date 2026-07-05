@@ -1,0 +1,31 @@
+# Environments
+.env
+.env.local
+.env.*.local
+venv/
+.venv/
+env/
+ENV/
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Build/Dist outputs
+dist/
+build/
+bin/
+obj/
+
+# Python Cache and System Files
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints
+
+# Editor/OS directories
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
