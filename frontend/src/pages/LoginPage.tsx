@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import PsychologyIcon from '@mui/icons-material/Psychology';
 import { supabase } from '../supabaseClient';
 import type { User } from '@supabase/supabase-js';
+import { useNotification } from '../components/NotificationContext';
 
 interface LoginPageProps {
   user: User | null;
@@ -11,6 +12,7 @@ interface LoginPageProps {
 
 export const LoginPage: React.FC<LoginPageProps> = ({ user }) => {
   const navigate = useNavigate();
+  const { showNotification } = useNotification();
   const [tabIndex, setTabIndex] = useState(0);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -45,6 +47,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ user }) => {
           password,
         });
         if (logInError) throw logInError;
+        showNotification('Welcome back!', 'success');
         navigate('/');
       } else {
         // Sign Up
@@ -56,15 +59,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ user }) => {
         
         // Supabase behavior check: is email confirmation required?
         if (data.session) {
+          showNotification('Account created and logged in!', 'success');
           navigate('/');
         } else {
-          setSuccessMsg('Registration successful! Please check your email to confirm your account.');
+          const successStr = 'Registration successful! Please check your email to confirm your account.';
+          setSuccessMsg(successStr);
+          showNotification(successStr, 'success');
           setEmail('');
           setPassword('');
         }
       }
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred. Please check your credentials.');
+      const severity = err.code === 'weak_password' ? 'warning' : 'error';
+      showNotification(err.message || 'An unexpected error occurred.', severity);
     } finally {
       setLoading(false);
     }

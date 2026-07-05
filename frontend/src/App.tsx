@@ -12,6 +12,7 @@ import { Footer } from './components/Footer';
 import { PredictPage } from './pages/PredictPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { LoginPage } from './pages/LoginPage';
+import { NotificationProvider } from './components/NotificationContext';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -44,32 +45,34 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <BrowserRouter>
-        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'background.default' }}>
-          <Navbar user={user} />
-          
-          <Box component="main" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-            <Routes>
-              {/* Prediction main workspace (Guest or User) */}
-              <Route path="/" element={<PredictPage user={user} />} />
-              
-              {/* Authenticated user history archives */}
-              <Route 
-                path="/history" 
-                element={user ? <HistoryPage user={user} /> : <Navigate to="/login" replace />} 
-              />
-              
-              {/* Sign in / Register */}
-              <Route path="/login" element={<LoginPage user={user} />} />
-              
-              {/* Fallback redirect */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+      <NotificationProvider>
+        <BrowserRouter>
+          <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'background.default' }}>
+            <Navbar user={user} />
+            
+            <Box component="main" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+              <Routes>
+                {/* Prediction main workspace (Guest or User) */}
+                <Route path="/" element={<PredictPage user={user} />} />
+                
+                {/* Authenticated user history archives */}
+                <Route 
+                  path="/history" 
+                  element={user ? <HistoryPage user={user} /> : <Navigate to="/login" replace />} 
+                />
+                
+                {/* Sign in / Register */}
+                <Route path="/login" element={<LoginPage user={user} />} />
+                
+                {/* Fallback redirect */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Box>
+            
+            <Footer />
           </Box>
-          
-          <Footer />
-        </Box>
-      </BrowserRouter>
+        </BrowserRouter>
+      </NotificationProvider>
     </ThemeProvider>
   );
 }

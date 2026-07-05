@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
 import { apiService } from '../apiService';
 import type { PredictionResult } from '../apiService';
+import { useNotification } from '../components/NotificationContext';
 
 interface PredictPageProps {
   user: User | null;
@@ -18,6 +19,7 @@ interface PredictPageProps {
 
 export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
   const navigate = useNavigate();
+  const { showNotification } = useNotification();
   const [file, setFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -44,6 +46,7 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
     const validTypes = ['image/jpeg', 'image/png', 'image/jpg'];
     if (!validTypes.includes(selectedFile.type)) {
       setError('Unsupported file type. Please upload a JPEG or PNG image.');
+      showNotification('Unsupported file type. Please upload a JPEG or PNG image.', 'warning');
       return;
     }
 
@@ -51,6 +54,7 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
     const maxSize = 10 * 1024 * 1024;
     if (selectedFile.size > maxSize) {
       setError('File size too large. MRI scans must be under 10MB.');
+      showNotification('File size too large. MRI scans must be under 10MB.', 'warning');
       return;
     }
 
@@ -100,8 +104,10 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
     try {
       const res = await apiService.predict(file);
       setResult(res);
+      showNotification('Analysis completed successfully!', 'success');
     } catch (err: any) {
       setError(err.message || 'An error occurred during image processing.');
+      showNotification(err.message || 'An error occurred during image processing.', 'error');
     } finally {
       setLoading(false);
     }

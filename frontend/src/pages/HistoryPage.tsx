@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
 import { apiService } from '../apiService';
 import type { ScanRecord } from '../apiService';
+import { useNotification } from '../components/NotificationContext';
 
 interface HistoryPageProps {
   user: User | null;
@@ -17,6 +18,7 @@ interface HistoryPageProps {
 
 export const HistoryPage: React.FC<HistoryPageProps> = ({ user }) => {
   const navigate = useNavigate();
+  const { showNotification } = useNotification();
   const [records, setRecords] = useState<ScanRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +44,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ user }) => {
       setRecords(data);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch scan history.');
+      showNotification(err.message || 'Failed to fetch scan history.', 'error');
     } finally {
       setLoading(false);
     }
@@ -55,11 +58,12 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ user }) => {
     try {
       await apiService.deleteRecord(recordId);
       setRecords(records.filter(r => r.id !== recordId));
+      showNotification('Scan record deleted successfully.', 'success');
       if (selectedRecord?.id === recordId) {
         setSelectedRecord(null);
       }
     } catch (err: any) {
-      alert(err.message || 'Failed to delete record.');
+      showNotification(err.message || 'Failed to delete record.', 'error');
     }
   };
 
