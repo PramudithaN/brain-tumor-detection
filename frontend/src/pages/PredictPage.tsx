@@ -1,12 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { Container, Grid, Card, CardContent, Typography, Button, Box, CircularProgress, Alert, Paper, LinearProgress } from '@mui/material';
+import { Container, Grid, Card, CardContent, Typography, Button, Box, CircularProgress, Alert, Paper } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import HelpIcon from '@mui/icons-material/Help';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import WarningIcon from '@mui/icons-material/Warning';
-import InfoIcon from '@mui/icons-material/Info';
 import { useNavigate } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
 import { apiService } from '../apiService';
@@ -125,8 +121,6 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
     }
   };
 
-  // Determine if result indicates a tumor is detected
-  const isTumorDetected = result && result.prediction_label !== 'No Tumor';
 
   return (
     <Container maxWidth="lg" sx={{ py: 6 }}>

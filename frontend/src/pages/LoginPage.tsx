@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Card, CardContent, TextField, Button, Typography, Box, Tabs, Tab, Alert, CircularProgress } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import PsychologyIcon from '@mui/icons-material/Psychology';
 import { supabase } from '../supabaseClient';
 import type { User } from '@supabase/supabase-js';
 import { useNotification } from '../components/NotificationContext';

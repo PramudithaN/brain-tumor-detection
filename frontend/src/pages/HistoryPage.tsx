@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Typography, Grid, Card, CardContent, CardMedia, Button, Box, CircularProgress, Alert, CardActions, IconButton, Dialog, DialogContent, DialogTitle, LinearProgress } from '@mui/material';
+import { Container, Typography, Grid, Card, CardContent, CardMedia, Button, Box, CircularProgress, Alert, CardActions, IconButton, Dialog, DialogContent, DialogTitle } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import ZoomInIcon from '@mui/icons-material/ZoomIn';
-import WarningIcon from '@mui/icons-material/Warning';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useNavigate } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
@@ -233,8 +231,8 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ user }) => {
         onClose={() => setSelectedRecord(null)} 
         maxWidth="md" 
         fullWidth
-        PaperProps={{
-          sx: {
+        sx={{
+          '& .MuiDialog-paper': {
             backgroundColor: '#15171A',
             border: '1px solid #2A2D31',
             borderRadius: 3,
