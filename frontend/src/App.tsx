@@ -35,7 +35,7 @@ function App() {
 
   if (authLoading) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#F7FAFC' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#0A0B0D' }}>
         <CircularProgress size={50} color="primary" />
       </Box>
     );

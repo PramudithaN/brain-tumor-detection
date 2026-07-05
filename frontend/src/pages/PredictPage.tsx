@@ -107,6 +107,18 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
     }
   };
 
+  const getClassificationColor = (label: string) => {
+    switch (label) {
+      case 'Glioma': return '#FF5A46';       // --heat-red
+      case 'Meningioma': return '#FFB238';   // --heat-amber
+      case 'Pituitary': return '#5CC8FF';    // --signal-cyan
+      case 'No Tumor':
+      case 'No tumor detected':
+        return '#4ADE9C';                    // --clear-mint
+      default: return '#5CC8FF';
+    }
+  };
+
   // Determine if result indicates a tumor is detected
   const isTumorDetected = result && result.prediction_label !== 'No Tumor';
 
@@ -114,21 +126,30 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
     <Container maxWidth="lg" sx={{ py: 6 }}>
       {/* Introduction Hero */}
       <Box sx={{ mb: 6, textAlign: 'center' }}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 800, mb: 1.5, letterSpacing: '-0.5px' }}>
+        <Typography variant="h1" sx={{ mb: 1.5 }}>
           Clinical Brain MRI Scan Analyzer
         </Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 650, mx: 'auto', mb: 2 }}>
+        <Typography variant="body1" sx={{ color: '#9C9FA4', maxWidth: 650, mx: 'auto', mb: 2 }}>
           Upload high-resolution horizontal, sagittal, or coronal T1/T2-weighted brain MRI images to classify and locate possible abnormalities.
         </Typography>
         {!user && (
-          <Alert severity="info" sx={{ display: 'inline-flex', textAlign: 'left', borderRadius: 2 }}>
-            <Box>
+          <Box sx={{
+            display: 'inline-flex',
+            textAlign: 'left',
+            p: 2,
+            pl: 3,
+            borderLeft: '3px solid #5CC8FF', // var(--signal-cyan)
+            backgroundColor: '#1C1F23',      // var(--surface-raised)
+            borderRadius: '0 12px 12px 0',
+            mt: 2
+          }}>
+            <Typography variant="body2" sx={{ color: '#F2F1ED' }}>
               Running in <strong>Guest Mode</strong>. Your scans and results will not be saved. 
-              <Button color="primary" size="small" onClick={() => navigate('/login')} sx={{ ml: 1, fontWeight: 700 }}>
+              <Button color="info" size="small" onClick={() => navigate('/login')} sx={{ ml: 1.5, p: 0, minWidth: 'auto', textTransform: 'none', fontWeight: 700, color: '#5CC8FF', '&:hover': { textDecoration: 'underline' } }}>
                 Sign in to save history
               </Button>
-            </Box>
-          </Alert>
+            </Typography>
+          </Box>
         )}
       </Box>
 
@@ -137,7 +158,7 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
         <Grid size={{ xs: 12, md: result ? 6 : 8 }} sx={{ mx: 'auto', transition: 'all 0.3s ease-in-out' }}>
           <Card sx={{ borderRadius: 3, overflow: 'hidden' }}>
             <CardContent sx={{ p: 4 }}>
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+              <Typography variant="h2" sx={{ mb: 2 }}>
                 Upload MRI Scan
               </Typography>
 
@@ -152,16 +173,16 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
                   onClick={handleBrowseClick}
                   sx={{
                     border: '2px dashed',
-                    borderColor: dragOver ? 'primary.main' : '#CBD5E1',
+                    borderColor: dragOver ? '#5CC8FF' : '#2A2D31',
                     borderRadius: 3,
-                    backgroundColor: dragOver ? 'rgba(15, 102, 116, 0.04)' : '#F8FAFC',
+                    backgroundColor: dragOver ? 'rgba(92, 200, 255, 0.08)' : '#15171A',
                     p: 6,
                     textAlign: 'center',
                     cursor: 'pointer',
                     transition: 'all 0.25s ease-in-out',
                     '&:hover': {
-                      borderColor: 'primary.main',
-                      backgroundColor: 'rgba(15, 102, 116, 0.02)',
+                      borderColor: '#5CC8FF',
+                      backgroundColor: '#1C1F23',
                     }
                   }}
                 >
@@ -172,14 +193,26 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
                     onChange={handleFileSelect}
                     accept=".jpg,.jpeg,.png"
                   />
-                  <CloudUploadIcon color="primary" sx={{ fontSize: 56, mb: 2 }} />
-                  <Typography variant="body1" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  <CloudUploadIcon sx={{ color: '#5CC8FF', fontSize: 56, mb: 2 }} />
+                  <Typography variant="body1" sx={{ fontWeight: 600, mb: 0.5, fontFamily: '"Space Grotesk", sans-serif' }}>
                     Drag & drop your MRI image here
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  <Typography variant="body2" sx={{ color: '#9C9FA4', mb: 2 }}>
                     Supports JPEG, PNG up to 10MB
                   </Typography>
-                  <Button variant="outlined" color="primary" size="small">
+                  <Button 
+                    variant="contained" 
+                    size="small"
+                    sx={{ 
+                      backgroundColor: '#1C1F23', 
+                      border: '1px solid #3D4147',
+                      color: '#F2F1ED',
+                      '&:hover': {
+                        backgroundColor: '#2A2D31',
+                        borderColor: '#5CC8FF'
+                      }
+                    }}
+                  >
                     Browse Files
                   </Button>
                 </Box>
@@ -188,11 +221,13 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
                   {/* Preview Container */}
                   <Paper
                     variant="outlined"
+                    className="scan-container"
                     sx={{
                       borderRadius: 3,
                       overflow: 'hidden',
                       position: 'relative',
                       backgroundColor: '#000000',
+                      border: '1px solid #2A2D31',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -210,6 +245,8 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
                       }}
                     />
                     
+                    {loading && <Box className="scan-line" />}
+                    
                     {/* Floating File Info */}
                     <Box
                       sx={{
@@ -217,9 +254,9 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
                         bottom: 0,
                         left: 0,
                         right: 0,
-                        backgroundColor: 'rgba(30, 41, 59, 0.75)',
-                        backdropFilter: 'blur(4px)',
-                        color: '#ffffff',
+                        backgroundColor: 'rgba(21, 23, 26, 0.85)',
+                        borderTop: '1px solid #2A2D31',
+                        color: '#F2F1ED',
                         px: 2,
                         py: 1,
                         display: 'flex',
@@ -227,10 +264,10 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
                         alignItems: 'center'
                       }}
                     >
-                      <Typography variant="caption" sx={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>
+                      <Typography variant="caption" sx={{ fontFamily: '"IBM Plex Mono", monospace', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>
                         {file?.name}
                       </Typography>
-                      <Typography variant="caption" sx={{ opacity: 0.8, flexShrink: 0 }}>
+                      <Typography variant="caption" sx={{ fontFamily: '"IBM Plex Mono", monospace', opacity: 0.8, flexShrink: 0 }}>
                         {file && (file.size / (1024 * 1024)).toFixed(2)} MB
                       </Typography>
                     </Box>
@@ -239,22 +276,43 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
                   {/* Actions */}
                   <Box sx={{ display: 'flex', gap: 2 }}>
                     <Button
-                      variant="outlined"
-                      color="inherit"
+                      variant="contained"
                       onClick={handleClear}
                       disabled={loading}
                       startIcon={<DeleteIcon />}
-                      sx={{ borderColor: '#CBD5E1', color: 'text.secondary', flex: 1 }}
+                      sx={{ 
+                        backgroundColor: '#1C1F23', 
+                        border: '1px solid #3D4147',
+                        color: '#9C9FA4',
+                        flex: 1,
+                        '&:hover': {
+                          backgroundColor: '#2A2D31',
+                          color: '#F2F1ED'
+                        }
+                      }}
                     >
                       Clear
                     </Button>
                     <Button
                       variant="contained"
-                      color="secondary"  // Coral CTA for accent
                       onClick={handleAnalyze}
                       disabled={loading}
-                      endIcon={loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : <ArrowForwardIcon />}
-                      sx={{ flex: 2, py: 1.2 }}
+                      endIcon={loading ? <CircularProgress size={20} sx={{ color: '#0A0B0D' }} /> : <ArrowForwardIcon />}
+                      sx={{ 
+                        flex: 2, 
+                        py: 1.2,
+                        background: 'linear-gradient(135deg, #FF5A46 0%, #FFB238 100%)',
+                        color: '#0A0B0D',
+                        fontWeight: 700,
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #FF705E 0%, #FFC154 100%)',
+                        },
+                        '&.Mui-disabled': {
+                          background: '#1C1F23',
+                          color: '#6B6E73',
+                          border: '1px solid #2A2D31'
+                        }
+                      }}
                     >
                       {loading ? 'Analyzing Scan...' : 'Analyze MRI Scan'}
                     </Button>
@@ -268,58 +326,110 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
         {/* Right Side: Prediction Result Panel (only visible when prediction is complete) */}
         {result && (
           <Grid size={{ xs: 12, md: 6 }}>
-            <Card sx={{ borderRadius: 3, borderLeft: '6px solid', borderLeftColor: isTumorDetected ? 'secondary.main' : 'primary.main', height: '100%' }}>
+            <Card sx={{ borderRadius: 3, borderLeft: '6px solid', borderLeftColor: getClassificationColor(result.prediction_label), height: '100%' }}>
               <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', height: '100%' }}>
-                <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
+                <Typography variant="h2" sx={{ mb: 3 }}>
                   Analysis Report
                 </Typography>
 
                 {/* Primary Result Headline */}
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: 4 }}>
-                  {isTumorDetected ? (
-                    <WarningIcon sx={{ color: 'secondary.main', fontSize: 44, mt: 0.5 }} />
-                  ) : (
-                    <CheckCircleIcon sx={{ color: 'primary.main', fontSize: 44, mt: 0.5 }} />
-                  )}
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 4 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Box sx={{ 
+                      width: 12, 
+                      height: 12, 
+                      borderRadius: '50%', 
+                      backgroundColor: getClassificationColor(result.prediction_label), 
+                      boxShadow: `0 0 10px 2px ${getClassificationColor(result.prediction_label)}` 
+                    }} />
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        fontFamily: '"IBM Plex Mono", monospace', 
+                        fontWeight: 600, 
+                        color: getClassificationColor(result.prediction_label), 
+                        letterSpacing: '0.08em', 
+                        textTransform: 'uppercase' 
+                      }}
+                    >
+                      {result.prediction_label === 'No Tumor' ? 'No Tumor Detected' : 'Abnormal Tissue Detected'}
+                    </Typography>
+                  </Box>
                   <Box>
-                    <Typography variant="body2" color="text.secondary" sx={{ textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>
-                      Diagnostic Classification
+                    <Typography variant="h4" sx={{ fontWeight: 700, my: 0.5 }}>
+                      {result.prediction_label === 'No Tumor' ? 'Benign Scan' : `${result.prediction_label} Tumor`}
                     </Typography>
-                    <Typography variant="h5" sx={{ fontWeight: 800, color: isTumorDetected ? 'secondary.main' : 'primary.main', my: 0.5 }}>
-                      {result.prediction_label} Detected
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" sx={{ color: '#6B6E73', fontFamily: '"IBM Plex Mono", monospace', mt: 1 }}>
                       Inference Engine: {result.model_version}
                     </Typography>
                   </Box>
                 </Box>
 
-                {/* Confidence Score Representation */}
-                <Box sx={{ mb: 4 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      Classification Confidence
-                    </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                      {(result.confidence * 100).toFixed(2)}%
-                    </Typography>
+                {/* Radial Scan Gauge for Confidence */}
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4, mt: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 3, color: '#9C9FA4', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.75rem' }}>
+                    Classification Confidence
+                  </Typography>
+                  <Box sx={{ position: 'relative', display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <CircularProgress
+                      variant="determinate"
+                      value={100}
+                      size={140}
+                      thickness={2}
+                      sx={{ color: '#2A2D31' }}
+                    />
+                    <CircularProgress
+                      variant="determinate"
+                      value={result.confidence * 100}
+                      size={140}
+                      thickness={2.5}
+                      sx={{
+                        color: getClassificationColor(result.prediction_label),
+                        position: 'absolute',
+                        left: 0,
+                        '& .MuiCircularProgress-circle': {
+                          strokeLinecap: 'round',
+                        },
+                      }}
+                    />
+                    <Box
+                      sx={{
+                        top: 0,
+                        left: 0,
+                        bottom: 0,
+                        right: 0,
+                        position: 'absolute',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Typography
+                        variant="h4"
+                        component="div"
+                        sx={{ fontFamily: '"IBM Plex Mono", monospace', fontWeight: 600, color: '#F2F1ED' }}
+                      >
+                        {(result.confidence * 100).toFixed(1)}%
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{ color: '#6B6E73', textTransform: 'uppercase', fontSize: '0.65rem', fontWeight: 600, mt: 0.5, letterSpacing: '0.05em' }}
+                      >
+                        Confidence
+                      </Typography>
+                    </Box>
                   </Box>
-                  <LinearProgress
-                    variant="determinate"
-                    value={result.confidence * 100}
-                    color={isTumorDetected ? "secondary" : "primary"}
-                    sx={{ height: 10, borderRadius: 5, backgroundColor: '#E2E8F0' }}
-                  />
                 </Box>
 
                 {/* DB Sync Status */}
-                <Box sx={{ mt: 'auto', p: 2, borderRadius: 2, backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                  <InfoIcon color="primary" fontSize="small" />
-                  <Typography variant="caption" color="text.secondary">
+                <Box sx={{ mt: 'auto', p: 2, borderRadius: 1.5, backgroundColor: '#1C1F23', border: '1px solid #2A2D31', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#5CC8FF' }} />
+                  <Typography variant="caption" sx={{ color: '#9C9FA4' }}>
                     {result.saved_to_history ? (
                       <span>This scan and report have been automatically saved to your cloud <strong>History</strong>.</span>
                     ) : (
-                      <span>In guest mode. Report is transient and will not be saved. <Button size="small" onClick={() => navigate('/login')} sx={{ p: 0, minWidth: 'auto', textTransform: 'none', fontWeight: 700 }}>Sign in</Button> to persist files.</span>
+                      <span>In guest mode. Report is transient and will not be saved. <Button size="small" onClick={() => navigate('/login')} sx={{ p: 0, minWidth: 'auto', textTransform: 'none', fontWeight: 700, color: '#5CC8FF', '&:hover': { textDecoration: 'underline' } }}>Sign in</Button> to persist files.</span>
                     )}
                   </Typography>
                 </Box>
@@ -331,45 +441,36 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
 
       {/* Frequently Asked Questions / Explanation */}
       <Box sx={{ mt: 8 }}>
-        <Typography variant="h6" sx={{ fontWeight: 700, mb: 3, textAlign: 'center' }}>
+        <Typography variant="h2" sx={{ mb: 3, textAlign: 'center' }}>
           Understanding MRI AI Classification
         </Typography>
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-            <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, height: '100%' }}>
-              <Box sx={{ display: 'flex', gap: 1.5, mb: 1.5 }}>
-                <HelpIcon color="primary" />
-                <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                  What is Glioma?
-                </Typography>
-              </Box>
-              <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+            <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, height: '100%', backgroundColor: '#15171A', borderColor: '#2A2D31' }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 1.5, fontFamily: '"Space Grotesk", sans-serif', color: '#F2F1ED' }}>
+                What is Glioma?
+              </Typography>
+              <Typography variant="body2" sx={{ lineHeight: 1.6, color: '#9C9FA4' }}>
                 Gliomas are tumors that start in the glial cells of the brain or spine. They are the most common type of primary brain tumor.
               </Typography>
             </Paper>
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-            <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, height: '100%' }}>
-              <Box sx={{ display: 'flex', gap: 1.5, mb: 1.5 }}>
-                <HelpIcon color="primary" />
-                <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                  What is Meningioma?
-                </Typography>
-              </Box>
-              <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                A meningioma is a tumor that arises from the meninges — the membranes surrounding the brain and spinal cord. Most are non-cancerous.
+            <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, height: '100%', backgroundColor: '#15171A', borderColor: '#2A2D31' }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 1.5, fontFamily: '"Space Grotesk", sans-serif', color: '#F2F1ED' }}>
+                What is Meningioma?
+              </Typography>
+              <Typography variant="body2" sx={{ lineHeight: 1.6, color: '#9C9FA4' }}>
+                A meningioma is a tumor that arises from the meninges - the membranes surrounding the brain and spinal cord. Most are non-cancerous.
               </Typography>
             </Paper>
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-            <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, height: '100%' }}>
-              <Box sx={{ display: 'flex', gap: 1.5, mb: 1.5 }}>
-                <HelpIcon color="primary" />
-                <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                  What is Pituitary?
-                </Typography>
-              </Box>
-              <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+            <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, height: '100%', backgroundColor: '#15171A', borderColor: '#2A2D31' }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 1.5, fontFamily: '"Space Grotesk", sans-serif', color: '#F2F1ED' }}>
+                What is Pituitary?
+              </Typography>
+              <Typography variant="body2" sx={{ lineHeight: 1.6, color: '#9C9FA4' }}>
                 Pituitary tumors are abnormal growths that develop in the pituitary gland at the base of the brain. Most pituitary tumors are benign.
               </Typography>
             </Paper>

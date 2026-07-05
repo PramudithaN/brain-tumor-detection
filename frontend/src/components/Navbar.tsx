@@ -21,14 +21,14 @@ export const Navbar: React.FC<NavbarProps> = ({ user }) => {
   };
 
   return (
-    <AppBar position="static" color="default" elevation={1} sx={{ backgroundColor: '#ffffff', borderBottom: '1px solid #E2E8F0' }}>
+    <AppBar position="static" elevation={0} sx={{ borderBottom: '1px solid #2A2D31' }}>
       <Container maxWidth="lg">
         <Toolbar disableGutters sx={{ justifyContent: 'space-between' }}>
           {/* Logo Section */}
-          <Box component={RouterLink} to="/" sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'primary.main', gap: 1 }}>
-            <PsychologyIcon sx={{ fontSize: 32 }} />
-            <Typography variant="h6" component="div" sx={{ fontWeight: 800, letterSpacing: '-0.5px' }}>
-              NeuroScan<Box component="span" sx={{ color: 'secondary.main' }}>AI</Box>
+          <Box component={RouterLink} to="/" sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', gap: 1 }}>
+            <PsychologyIcon sx={{ fontSize: 32, color: '#5CC8FF' }} />
+            <Typography variant="h6" component="div" sx={{ fontFamily: '"Space Grotesk", sans-serif', fontWeight: 700, letterSpacing: '-0.5px', color: '#F2F1ED' }}>
+              NeuroScan<Box component="span" sx={{ color: '#FF5A46' }}>AI</Box>
             </Typography>
           </Box>
 
@@ -38,8 +38,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user }) => {
               component={RouterLink}
               to="/"
               variant="text"
-              color="inherit"
-              sx={{ color: 'text.primary', fontWeight: 500 }}
+              sx={{ color: '#F2F1ED', fontWeight: 500, '&:hover': { color: '#5CC8FF' } }}
             >
               Analyze Scan
             </Button>
@@ -49,9 +48,8 @@ export const Navbar: React.FC<NavbarProps> = ({ user }) => {
                 component={RouterLink}
                 to="/history"
                 variant="text"
-                color="inherit"
                 startIcon={<HistoryIcon />}
-                sx={{ color: 'text.primary', fontWeight: 500 }}
+                sx={{ color: '#F2F1ED', fontWeight: 500, '&:hover': { color: '#5CC8FF' } }}
               >
                 History
               </Button>
@@ -59,15 +57,22 @@ export const Navbar: React.FC<NavbarProps> = ({ user }) => {
 
             {user ? (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' }, fontWeight: 500, color: 'text.secondary' }}>
+                <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' }, fontWeight: 500, color: '#9C9FA4', fontFamily: '"IBM Plex Mono", monospace' }}>
                   {user.email}
                 </Typography>
                 <Button
                   onClick={handleLogout}
                   variant="outlined"
-                  color="primary"
                   size="small"
                   startIcon={<LogoutIcon />}
+                  sx={{ 
+                    borderColor: '#3D4147', 
+                    color: '#F2F1ED',
+                    '&:hover': { 
+                      borderColor: '#FF5A46',
+                      backgroundColor: 'rgba(255, 90, 70, 0.08)'
+                    } 
+                  }}
                 >
                   Logout
                 </Button>
@@ -77,9 +82,17 @@ export const Navbar: React.FC<NavbarProps> = ({ user }) => {
                 component={RouterLink}
                 to="/login"
                 variant="contained"
-                color="primary"
                 size="small"
                 startIcon={<LoginIcon />}
+                sx={{ 
+                  backgroundColor: '#1C1F23', 
+                  border: '1px solid #3D4147',
+                  color: '#F2F1ED',
+                  '&:hover': {
+                    backgroundColor: '#2A2D31',
+                    borderColor: '#5CC8FF'
+                  }
+                }}
               >
                 Sign In
               </Button>
