@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Card, CardContent, TextField, Button, Typography, Box, Alert, CircularProgress } from '@mui/material';
+import { Container, Card, CardContent, TextField, Button, Typography, Box, Alert, CircularProgress, IconButton, InputAdornment } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useNotification } from '../components/NotificationContext';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 
 export const ResetPasswordPage: React.FC = () => {
   const navigate = useNavigate();
   const { showNotification } = useNotification();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -106,7 +110,7 @@ export const ResetPasswordPage: React.FC = () => {
               fullWidth
               name="password"
               label="New Password"
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               id="password"
               autoComplete="new-password"
               autoFocus
@@ -114,6 +118,22 @@ export const ResetPasswordPage: React.FC = () => {
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
               sx={{ mb: 2 }}
+              slotProps={{
+                input: {
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label="toggle password visibility"
+                        onClick={() => setShowPassword(!showPassword)}
+                        edge="end"
+                        sx={{ color: '#6B6E73' }}
+                      >
+                        {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                      </IconButton>
+                    </InputAdornment>
+                  )
+                }
+              }}
             />
 
             <TextField
@@ -122,13 +142,29 @@ export const ResetPasswordPage: React.FC = () => {
               fullWidth
               name="confirmPassword"
               label="Confirm New Password"
-              type="password"
+              type={showConfirmPassword ? 'text' : 'password'}
               id="confirmPassword"
               autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               disabled={loading}
               sx={{ mb: 3 }}
+              slotProps={{
+                input: {
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label="toggle password visibility"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        edge="end"
+                        sx={{ color: '#6B6E73' }}
+                      >
+                        {showConfirmPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                      </IconButton>
+                    </InputAdornment>
+                  )
+                }
+              }}
             />
 
             <Button
