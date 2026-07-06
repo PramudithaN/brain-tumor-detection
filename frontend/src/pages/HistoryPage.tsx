@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Typography, Grid, Card, CardContent, CardMedia, Button, Box, CircularProgress, Alert, CardActions, IconButton, Dialog, DialogContent, DialogTitle } from '@mui/material';
+import { Container, Typography, Grid, Card, CardContent, Button, Box, CircularProgress, Alert, IconButton, Dialog, DialogContent, DialogTitle, TextField, InputAdornment, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import SearchIcon from '@mui/icons-material/Search';
 import { useNavigate } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
 import { apiService } from '../apiService';
@@ -20,6 +21,11 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ user }) => {
   const [records, setRecords] = useState<ScanRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Search & Filter State
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterLabel, setFilterLabel] = useState('All');
+  const [sortBy, setSortBy] = useState('newest');
   
   // Selected record for popup modal preview
   const [selectedRecord, setSelectedRecord] = useState<ScanRecord | null>(null);
@@ -99,6 +105,30 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ user }) => {
     }
   };
 
+  const filteredRecords = records
+    .filter((record) => {
+      const matchesSearch = 
+        record.prediction_label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        record.model_version.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        formatDate(record.created_at).toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesLabel = filterLabel === 'All' || record.prediction_label === filterLabel;
+      
+      return matchesSearch && matchesLabel;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'newest') {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+      if (sortBy === 'oldest') {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      }
+      if (sortBy === 'confidence') {
+        return b.confidence - a.confidence;
+      }
+      return 0;
+    });
+
   return (
     <Container maxWidth="lg" sx={{ py: 6 }}>
       {/* Header */}
@@ -156,73 +186,250 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ user }) => {
           </Box>
         </Card>
       ) : (
-        <Grid container spacing={3}>
-          {records.map((record) => {
-            const cardColor = getClassificationColor(record.prediction_label);
-            return (
-              <Grid size={{ xs: 12, sm: 6, md: 4 }} key={record.id}>
-                <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', borderRadius: 3, border: '1px solid #2A2D31', backgroundColor: '#15171A' }}>
-                  <CardMedia
-                    component="img"
-                    height="180"
-                    image={record.signed_url || 'https://placehold.co/600x400/000/fff?text=MRI+Scan'}
-                    alt="Brain MRI scan"
-                    sx={{ backgroundColor: '#000000', objectFit: 'contain' }}
-                  />
-                  <CardContent sx={{ flexGrow: 1, p: 3 }}>
-                    {/* Class badge */}
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: cardColor, boxShadow: `0 0 6px ${cardColor}` }} />
-                        <Typography sx={{ fontFamily: '"IBM Plex Mono", monospace', fontWeight: 600, color: cardColor, fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                          {record.prediction_label}
-                        </Typography>
+        <>
+          {/* Search and Filters */}
+          <Box sx={{ 
+            mb: 4, 
+            p: 2.5, 
+            borderRadius: 3, 
+            backgroundColor: '#15171A', 
+            border: '1px solid #2A2D31',
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            gap: 2,
+            alignItems: 'center'
+          }}>
+            <TextField
+              placeholder="Search by label, date, or engine..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              variant="outlined"
+              fullWidth
+              size="small"
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ color: '#6B6E73', fontSize: 20 }} />
+                    </InputAdornment>
+                  ),
+                }
+              }}
+              sx={{
+                flexGrow: 3,
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: '#0A0B0D',
+                  '& fieldset': { borderColor: '#2A2D31' },
+                  '&:hover fieldset': { borderColor: '#3D4147' },
+                  '&.Mui-focused fieldset': { borderColor: '#5CC8FF' },
+                }
+              }}
+            />
+
+            <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 160 }, flexGrow: 1 }}>
+              <InputLabel id="filter-label-select-label" sx={{ color: '#9C9FA4', fontSize: '0.85rem' }}>Diagnosis</InputLabel>
+              <Select
+                labelId="filter-label-select-label"
+                id="filter-label-select"
+                value={filterLabel}
+                label="Diagnosis"
+                onChange={(e) => setFilterLabel(e.target.value)}
+                sx={{
+                  backgroundColor: '#0A0B0D',
+                  color: '#F2F1ED',
+                  '& .MuiOutlinedInput-notchedOutline': { borderColor: '#2A2D31' },
+                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#3D4147' },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#5CC8FF' },
+                }}
+              >
+                <MenuItem value="All">All Diagnosis</MenuItem>
+                <MenuItem value="No Tumor">No Tumor</MenuItem>
+                <MenuItem value="Glioma">Glioma</MenuItem>
+                <MenuItem value="Meningioma">Meningioma</MenuItem>
+                <MenuItem value="Pituitary">Pituitary</MenuItem>
+              </Select>
+            </FormControl>
+
+            <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 160 }, flexGrow: 1 }}>
+              <InputLabel id="sort-select-label" sx={{ color: '#9C9FA4', fontSize: '0.85rem' }}>Sort By</InputLabel>
+              <Select
+                labelId="sort-select-label"
+                id="sort-select"
+                value={sortBy}
+                label="Sort By"
+                onChange={(e) => setSortBy(e.target.value)}
+                sx={{
+                  backgroundColor: '#0A0B0D',
+                  color: '#F2F1ED',
+                  '& .MuiOutlinedInput-notchedOutline': { borderColor: '#2A2D31' },
+                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#3D4147' },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#5CC8FF' },
+                }}
+              >
+                <MenuItem value="newest">Newest First</MenuItem>
+                <MenuItem value="oldest">Oldest First</MenuItem>
+                <MenuItem value="confidence">Highest Confidence</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+
+          {filteredRecords.length === 0 ? (
+            <Card variant="outlined" sx={{ py: 6, px: 2, textAlign: 'center', borderRadius: 3, borderColor: '#2A2D31', backgroundColor: '#15171A' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                <CalendarTodayIcon sx={{ fontSize: 40, color: '#6B6E73' }} />
+                <Typography variant="h6" sx={{ fontWeight: 600, color: '#F2F1ED', fontFamily: '"Space Grotesk", sans-serif' }}>
+                  No matching records found
+                </Typography>
+                <Typography variant="body2" sx={{ maxWidth: 400, color: '#9C9FA4' }}>
+                  Try adjusting your search query or filters to find what you are looking for.
+                </Typography>
+                <Button size="small" variant="text" onClick={() => { setSearchTerm(''); setFilterLabel('All'); }} sx={{ color: '#5CC8FF', fontWeight: 600 }}>
+                  Reset Filters
+                </Button>
+              </Box>
+            </Card>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {filteredRecords.map((record) => {
+                const statusColor = getClassificationColor(record.prediction_label);
+                return (
+                  <Card 
+                    key={record.id}
+                    sx={{ 
+                      borderRadius: 3, 
+                      border: '1px solid #2A2D31', 
+                      backgroundColor: '#15171A',
+                      transition: 'all 0.2s ease-in-out',
+                      '&:hover': {
+                        borderColor: '#3D4147',
+                        transform: 'translateY(-2px)'
+                      }
+                    }}
+                  >
+                    <CardContent sx={{ p: 2, '&:last-child': { pb: 2 }, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: { xs: 'wrap', md: 'nowrap' }, gap: 3 }}>
+                      
+                      {/* Thumbnail and Title info */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5, flexGrow: 1, width: { xs: '100%', md: 'auto' } }}>
+                        {/* MRI Thumbnail */}
+                        <Box 
+                          sx={{ 
+                            width: 72, 
+                            height: 72, 
+                            borderRadius: 2, 
+                            overflow: 'hidden', 
+                            flexShrink: 0,
+                            backgroundColor: '#000000',
+                            border: '1px solid #2A2D31',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          <img 
+                            src={record.signed_url || 'https://placehold.co/100/000/fff?text=MRI'} 
+                            alt="Brain MRI Thumbnail" 
+                            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                          />
+                        </Box>
+                        
+                        {/* Diagnosis & Model details */}
+                        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5, flexWrap: 'wrap' }}>
+                            <Typography variant="h5" sx={{ fontWeight: 700, m: 0, fontSize: '1.1rem', color: '#F2F1ED' }}>
+                              {record.prediction_label === 'No Tumor' ? 'No Tumor Detected' : `${record.prediction_label} Tumor`}
+                            </Typography>
+                            
+                            {/* Status Chip */}
+                            <Box sx={{ 
+                              display: 'inline-flex', 
+                              alignItems: 'center', 
+                              gap: 1, 
+                              px: 1.5, 
+                              py: 0.25, 
+                              borderRadius: '12px',
+                              border: '1px solid',
+                              borderColor: `rgba(${statusColor === '#FF5A46' ? '255, 90, 70' : statusColor === '#FFB238' ? '255, 178, 56' : statusColor === '#4ADE9C' ? '74, 222, 156' : '92, 200, 255'}, 0.2)`,
+                              backgroundColor: `rgba(${statusColor === '#FF5A46' ? '255, 90, 70' : statusColor === '#FFB238' ? '255, 178, 56' : statusColor === '#4ADE9C' ? '74, 222, 156' : '92, 200, 255'}, 0.05)`,
+                            }}>
+                              <Box sx={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: statusColor }} />
+                              <Typography sx={{ fontFamily: '"IBM Plex Mono", monospace', fontWeight: 600, color: statusColor, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                {record.prediction_label}
+                              </Typography>
+                            </Box>
+                          </Box>
+                          
+                          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mt: 1 }}>
+                            <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#9C9FA4', fontFamily: '"IBM Plex Mono", monospace', fontSize: '0.75rem' }}>
+                              <CalendarTodayIcon sx={{ fontSize: 13, color: '#6B6E73' }} />
+                              {formatDate(record.created_at)}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: '#6B6E73', fontFamily: '"IBM Plex Mono", monospace', fontSize: '0.75rem' }}>
+                              Engine: {record.model_version}
+                            </Typography>
+                          </Box>
+                        </Box>
                       </Box>
-                      <Typography sx={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: '0.75rem', color: '#F2F1ED', fontWeight: 500 }}>
-                        {(record.confidence * 100).toFixed(1)}%
-                      </Typography>
-                    </Box>
-
-                    {/* Date */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-                      <CalendarTodayIcon sx={{ fontSize: 16, color: '#6B6E73' }} />
-                      <Typography variant="body2" sx={{ fontWeight: 500, color: '#9C9FA4', fontFamily: '"IBM Plex Mono", monospace', fontSize: '0.85rem' }}>
-                        {formatDate(record.created_at)}
-                      </Typography>
-                    </Box>
-
-                    <Typography variant="caption" sx={{ display: 'block', color: '#6B6E73', fontFamily: '"IBM Plex Mono", monospace' }}>
-                      Engine: {record.model_version}
-                    </Typography>
-                  </CardContent>
-
-                  <CardActions sx={{ px: 3, pb: 3, pt: 0, justifyContent: 'space-between' }}>
-                    <IconButton size="small" onClick={() => handleDelete(record.id)} sx={{ color: '#FF5A46', '&:hover': { backgroundColor: 'rgba(255, 90, 70, 0.08)' } }}>
-                      <DeleteIcon />
-                    </IconButton>
-                    <Button
-                      size="small"
-                      startIcon={<ZoomInIcon />}
-                      onClick={() => setSelectedRecord(record)}
-                      variant="contained"
-                      sx={{ 
-                        backgroundColor: '#1C1F23', 
-                        border: '1px solid #3D4147',
-                        color: '#F2F1ED',
-                        '&:hover': {
-                          backgroundColor: '#2A2D31',
-                          borderColor: '#5CC8FF'
-                        }
-                      }}
-                    >
-                      View Report
-                    </Button>
-                  </CardActions>
-                </Card>
-              </Grid>
-            );
-          })}
-        </Grid>
+                      
+                      {/* Confidence and Actions */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4, width: { xs: '100%', md: 'auto' }, flexShrink: 0 }}>
+                        {/* Confidence Meter */}
+                        <Box sx={{ textAlign: { xs: 'left', md: 'right' }, minWidth: 100 }}>
+                          <Typography variant="caption" sx={{ color: '#6B6E73', textTransform: 'uppercase', fontWeight: 600, display: 'block', fontSize: '0.65rem', mb: 0.5 }}>
+                            Confidence
+                          </Typography>
+                          <Typography sx={{ fontFamily: '"IBM Plex Mono", monospace', fontWeight: 700, fontSize: '1.15rem', color: statusColor }}>
+                            {(record.confidence * 100).toFixed(1)}%
+                          </Typography>
+                        </Box>
+                        
+                        {/* Actions */}
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <IconButton 
+                            size="medium" 
+                            onClick={() => handleDelete(record.id)} 
+                            sx={{ 
+                              color: '#FF5A46', 
+                              border: '1px solid rgba(255, 90, 70, 0.1)',
+                              borderRadius: 2,
+                              '&:hover': { 
+                                backgroundColor: 'rgba(255, 90, 70, 0.08)',
+                                borderColor: '#FF5A46'
+                              } 
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                          <Button
+                            size="medium"
+                            startIcon={<ZoomInIcon />}
+                            onClick={() => setSelectedRecord(record)}
+                            variant="contained"
+                            sx={{ 
+                              backgroundColor: '#1C1F23', 
+                              border: '1px solid #3D4147',
+                              color: '#F2F1ED',
+                              borderRadius: 2,
+                              px: 2,
+                              textTransform: 'none',
+                              fontWeight: 600,
+                              '&:hover': {
+                                backgroundColor: '#2A2D31',
+                                borderColor: '#5CC8FF'
+                              }
+                            }}
+                          >
+                            Report
+                          </Button>
+                        </Box>
+                      </Box>
+                      
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </Box>
+          )}
+        </>
       )}
 
       {/* Record Preview Modal Dialog */}
