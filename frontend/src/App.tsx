@@ -66,7 +66,7 @@ function App() {
                 <Route path="/login" element={<LoginPage user={user} />} />
                 
                 {/* Reset Password */}
-                <Route path="/reset-password" element={<ResetPasswordPage user={user} />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
                 
                 {/* Fallback redirect */}
                 <Route path="*" element={<Navigate to="/" replace />} />

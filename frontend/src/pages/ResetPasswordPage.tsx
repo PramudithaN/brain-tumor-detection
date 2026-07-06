@@ -2,14 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Container, Card, CardContent, TextField, Button, Typography, Box, Alert, CircularProgress } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import type { User } from '@supabase/supabase-js';
 import { useNotification } from '../components/NotificationContext';
 
-interface ResetPasswordPageProps {
-  user: User | null;
-}
-
-export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ user }) => {
+export const ResetPasswordPage: React.FC = () => {
   const navigate = useNavigate();
   const { showNotification } = useNotification();
   const [password, setPassword] = useState('');
