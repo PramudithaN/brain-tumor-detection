@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Typography, Grid, Card, CardContent, Button, Box, CircularProgress, Alert, IconButton, Dialog, DialogContent, DialogTitle, TextField, InputAdornment, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
+import { Container, Typography, Grid, Card, CardContent, Button, Box, CircularProgress, Alert, IconButton, Dialog, DialogContent, DialogTitle, TextField, InputAdornment, FormControl, InputLabel, Select, MenuItem, Pagination } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import ZoomInIcon from '@mui/icons-material/ZoomIn';
@@ -25,10 +25,20 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ user }) => {
   // Search & Filter State
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLabel, setFilterLabel] = useState('All');
+  const [filterDate, setFilterDate] = useState('');
   const [sortBy, setSortBy] = useState('newest');
+
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 5;
   
   // Selected record for popup modal preview
   const [selectedRecord, setSelectedRecord] = useState<ScanRecord | null>(null);
+
+  // Reset pagination when search/filter options change
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, filterLabel, filterDate, sortBy]);
 
   useEffect(() => {
     // Redirect if not logged in
@@ -107,14 +117,24 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ user }) => {
 
   const filteredRecords = records
     .filter((record) => {
+      // 1. Text Search Filter
       const matchesSearch = 
         record.prediction_label.toLowerCase().includes(searchTerm.toLowerCase()) ||
         record.model_version.toLowerCase().includes(searchTerm.toLowerCase()) ||
         formatDate(record.created_at).toLowerCase().includes(searchTerm.toLowerCase());
       
+      // 2. Class Label Filter
       const matchesLabel = filterLabel === 'All' || record.prediction_label === filterLabel;
+
+      // 3. Date Filter (YYYY-MM-DD local format)
+      const localDate = new Date(record.created_at);
+      const year = localDate.getFullYear();
+      const month = String(localDate.getMonth() + 1).padStart(2, '0');
+      const day = String(localDate.getDate()).padStart(2, '0');
+      const recordLocalDateStr = `${year}-${month}-${day}`;
+      const matchesDate = !filterDate || recordLocalDateStr === filterDate;
       
-      return matchesSearch && matchesLabel;
+      return matchesSearch && matchesLabel && matchesDate;
     })
     .sort((a, b) => {
       if (sortBy === 'newest') {
@@ -128,6 +148,9 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ user }) => {
       }
       return 0;
     });
+
+  const paginatedRecords = filteredRecords.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
 
   return (
     <Container maxWidth="lg" sx={{ py: 6 }}>
@@ -226,6 +249,28 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ user }) => {
               }}
             />
 
+            <TextField
+              type="date"
+              label="Select Date"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              size="small"
+              slotProps={{
+                inputLabel: { shrink: true }
+              }}
+              sx={{
+                minWidth: { xs: '100%', sm: 165 },
+                flexGrow: 1,
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: '#0A0B0D',
+                  color: '#F2F1ED',
+                  '& fieldset': { borderColor: '#2A2D31' },
+                  '&:hover fieldset': { borderColor: '#3D4147' },
+                  '&.Mui-focused fieldset': { borderColor: '#5CC8FF' },
+                }
+              }}
+            />
+
             <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 160 }, flexGrow: 1 }}>
               <InputLabel id="filter-label-select-label" sx={{ color: '#9C9FA4', fontSize: '0.85rem' }}>Diagnosis</InputLabel>
               <Select
@@ -283,14 +328,14 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ user }) => {
                 <Typography variant="body2" sx={{ maxWidth: 400, color: '#9C9FA4' }}>
                   Try adjusting your search query or filters to find what you are looking for.
                 </Typography>
-                <Button size="small" variant="text" onClick={() => { setSearchTerm(''); setFilterLabel('All'); }} sx={{ color: '#5CC8FF', fontWeight: 600 }}>
+                <Button size="small" variant="text" onClick={() => { setSearchTerm(''); setFilterLabel('All'); setFilterDate(''); }} sx={{ color: '#5CC8FF', fontWeight: 600 }}>
                   Reset Filters
                 </Button>
               </Box>
             </Card>
           ) : (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {filteredRecords.map((record) => {
+              {paginatedRecords.map((record) => {
                 const statusColor = getClassificationColor(record.prediction_label);
                 return (
                   <Card 
@@ -427,6 +472,36 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ user }) => {
                   </Card>
                 );
               })}
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                  <Pagination 
+                    count={totalPages} 
+                    page={page} 
+                    onChange={(_event, value) => setPage(value)} 
+                    color="primary"
+                    sx={{
+                      '& .MuiPaginationItem-root': {
+                        color: '#9C9FA4',
+                        borderColor: '#2A2D31',
+                        '&:hover': {
+                          backgroundColor: '#2A2D31',
+                          color: '#F2F1ED'
+                        },
+                        '&.Mui-selected': {
+                          backgroundColor: 'rgba(92, 200, 255, 0.15)',
+                          color: '#5CC8FF',
+                          borderColor: '#5CC8FF',
+                          '&:hover': {
+                            backgroundColor: 'rgba(92, 200, 255, 0.25)',
+                          }
+                        }
+                      }
+                    }}
+                  />
+                </Box>
+              )}
             </Box>
           )}
         </>
