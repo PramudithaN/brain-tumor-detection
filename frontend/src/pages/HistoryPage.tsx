@@ -5,11 +5,13 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
+import DownloadIcon from '@mui/icons-material/Download';
 import { useNavigate } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
 import { apiService } from '../apiService';
 import type { ScanRecord } from '../apiService';
 import { useNotification } from '../components/NotificationContext';
+import { downloadPDFReport } from '../utils/pdfGenerator';
 
 interface HistoryPageProps {
   user: User | null;
@@ -78,6 +80,24 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ user }) => {
       }
     } catch (err: any) {
       showNotification(err.message || 'Failed to delete record.', 'error');
+    }
+  };
+
+  const handleDownloadReport = async (record: ScanRecord) => {
+    try {
+      showNotification('Generating PDF report...', 'info');
+      await downloadPDFReport({
+        id: record.id,
+        email: user?.email || undefined,
+        prediction_label: record.prediction_label,
+        confidence: record.confidence,
+        model_version: record.model_version,
+        created_at: record.created_at,
+        imageUrl: record.signed_url || null,
+      });
+      showNotification('PDF report downloaded successfully.', 'success');
+    } catch (err: any) {
+      showNotification(err.message || 'Failed to generate PDF.', 'error');
     }
   };
 
@@ -444,6 +464,21 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ user }) => {
                           >
                             <DeleteIcon fontSize="small" />
                           </IconButton>
+                          <IconButton 
+                            size="medium" 
+                            onClick={() => handleDownloadReport(record)} 
+                            sx={{ 
+                              color: '#5CC8FF', 
+                              border: '1px solid rgba(92, 200, 255, 0.1)',
+                              borderRadius: 2,
+                              '&:hover': { 
+                                backgroundColor: 'rgba(92, 200, 255, 0.08)',
+                                borderColor: '#5CC8FF'
+                              } 
+                            }}
+                          >
+                            <DownloadIcon fontSize="small" />
+                          </IconButton>
                           <Button
                             size="medium"
                             startIcon={<ZoomInIcon />}
@@ -593,7 +628,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ user }) => {
                     </Typography>
                   </Box>
 
-                  <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
+                  <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mt: 3 }}>
                     <Button 
                       variant="outlined" 
                       color="error" 
@@ -609,6 +644,22 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ user }) => {
                       }}
                     >
                       Delete Record
+                    </Button>
+                    <Button 
+                      variant="contained" 
+                      fullWidth 
+                      onClick={() => handleDownloadReport(selectedRecord)}
+                      startIcon={<DownloadIcon />}
+                      sx={{
+                        background: 'linear-gradient(135deg, #5CC8FF 0%, #007ACC 100%)',
+                        color: '#0A0B0D',
+                        fontWeight: 700,
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #70D2FF 0%, #008AE6 100%)'
+                        }
+                      }}
+                    >
+                      Download PDF
                     </Button>
                     <Button 
                       variant="contained" 

@@ -3,11 +3,13 @@ import { Container, Grid, Card, CardContent, Typography, Button, Box, CircularPr
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import DownloadIcon from '@mui/icons-material/Download';
 import { useNavigate } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
 import { apiService } from '../apiService';
 import type { PredictionResult } from '../apiService';
 import { useNotification } from '../components/NotificationContext';
+import { downloadPDFReport } from '../utils/pdfGenerator';
 
 interface PredictPageProps {
   user: User | null;
@@ -126,6 +128,25 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
       showNotification(err.message || 'An error occurred during image processing.', 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDownloadReport = async () => {
+    if (!result) return;
+    try {
+      showNotification('Generating PDF report...', 'info');
+      await downloadPDFReport({
+        id: result.record?.id,
+        email: user?.email || undefined,
+        prediction_label: result.prediction_label,
+        confidence: result.confidence,
+        model_version: result.model_version,
+        created_at: result.record?.created_at || new Date().toISOString(),
+        imageUrl: imagePreview,
+      });
+      showNotification('PDF report downloaded successfully.', 'success');
+    } catch (err: any) {
+      showNotification(err.message || 'Failed to generate PDF.', 'error');
     }
   };
 
@@ -479,6 +500,29 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
                     )}
                   </Typography>
                 </Box>
+
+                {/* Download Report Button */}
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  onClick={handleDownloadReport}
+                  startIcon={<DownloadIcon />}
+                  sx={{ 
+                    mt: 2, 
+                    py: 1,
+                    borderColor: '#3D4147',
+                    color: '#F2F1ED',
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    '&:hover': {
+                      backgroundColor: 'rgba(92, 200, 255, 0.08)',
+                      borderColor: '#5CC8FF',
+                      color: '#5CC8FF'
+                    }
+                  }}
+                >
+                  Download PDF Report
+                </Button>
               </CardContent>
             </Card>
           </Grid>
