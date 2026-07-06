@@ -9,7 +9,12 @@ logger = logging.getLogger("app.inference")
 
 class BrainTumorClassifier:
     def __init__(self, model_path: str = None):
-        self.model_path = model_path or os.getenv("MODEL_PATH", "backend/app/inference/model.onnx")
+        # Resolve model path, checking both local dev path and production container path
+        default_path = "backend/app/inference/model.onnx"
+        if not os.path.exists(default_path) and os.path.exists("app/inference/model.onnx"):
+            default_path = "app/inference/model.onnx"
+            
+        self.model_path = model_path or os.getenv("MODEL_PATH", default_path)
         self.model = None
         self.is_mock = True
         self.classes = ["Glioma", "Meningioma", "No Tumor", "Pituitary"]
