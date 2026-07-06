@@ -13,15 +13,20 @@ interface PredictPageProps {
   user: User | null;
 }
 
+// Module-level cache to persist state across page navigation (component unmount/remount)
+let persistedFile: File | null = null;
+let persistedImagePreview: string | null = null;
+let persistedResult: PredictionResult | null = null;
+
 export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
   const navigate = useNavigate();
   const { showNotification } = useNotification();
-  const [file, setFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(persistedFile);
+  const [imagePreview, setImagePreview] = useState<string | null>(persistedImagePreview);
   const [dragOver, setDragOver] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<PredictionResult | null>(null);
+  const [result, setResult] = useState<PredictionResult | null>(persistedResult);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -36,6 +41,7 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
   const processFile = (selectedFile: File) => {
     setError(null);
     setResult(null);
+    persistedResult = null; // Clear old result cache on new file select
 
     // Client-side validation
     // 1. File Type Check
@@ -55,11 +61,14 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
     }
 
     setFile(selectedFile);
+    persistedFile = selectedFile; // Save to cache
     
     // Create image preview
     const reader = new FileReader();
     reader.onloadend = () => {
-      setImagePreview(reader.result as string);
+      const previewUrl = reader.result as string;
+      setImagePreview(previewUrl);
+      persistedImagePreview = previewUrl; // Save to cache
     };
     reader.readAsDataURL(selectedFile);
   };
@@ -87,9 +96,19 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
     setImagePreview(null);
     setError(null);
     setResult(null);
+    persistedFile = null;
+    persistedImagePreview = null;
+    persistedResult = null;
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handleRescan = () => {
+    handleClear();
+    setTimeout(() => {
+      fileInputRef.current?.click();
+    }, 100);
   };
 
   const handleAnalyze = async () => {
@@ -100,6 +119,7 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
     try {
       const res = await apiService.predict(file);
       setResult(res);
+      persistedResult = res; // Save to cache
       showNotification('Analysis completed successfully!', 'success');
     } catch (err: any) {
       setError(err.message || 'An error occurred during image processing.');
@@ -293,29 +313,55 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
                     >
                       Clear
                     </Button>
-                    <Button
-                      variant="contained"
-                      onClick={handleAnalyze}
-                      disabled={loading}
-                      endIcon={loading ? <CircularProgress size={20} sx={{ color: '#0A0B0D' }} /> : <ArrowForwardIcon />}
-                      sx={{ 
-                        flex: 2, 
-                        py: 1.2,
-                        background: 'linear-gradient(135deg, #FF5A46 0%, #FFB238 100%)',
-                        color: '#0A0B0D',
-                        fontWeight: 700,
-                        '&:hover': {
-                          background: 'linear-gradient(135deg, #FF705E 0%, #FFC154 100%)',
-                        },
-                        '&.Mui-disabled': {
-                          background: '#1C1F23',
-                          color: '#6B6E73',
-                          border: '1px solid #2A2D31'
-                        }
-                      }}
-                    >
-                      {loading ? 'Analyzing Scan...' : 'Analyze MRI Scan'}
-                    </Button>
+                    {result ? (
+                      <Button
+                        variant="contained"
+                        onClick={handleRescan}
+                        disabled={loading}
+                        endIcon={<ArrowForwardIcon />}
+                        sx={{ 
+                          flex: 2, 
+                          py: 1.2,
+                          background: 'linear-gradient(135deg, #5CC8FF 0%, #007ACC 100%)',
+                          color: '#0A0B0D',
+                          fontWeight: 700,
+                          '&:hover': {
+                            background: 'linear-gradient(135deg, #70D2FF 0%, #008AE6 100%)',
+                          },
+                          '&.Mui-disabled': {
+                            background: '#1C1F23',
+                            color: '#6B6E73',
+                            border: '1px solid #2A2D31'
+                          }
+                        }}
+                      >
+                        Re-scan / New Scan
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="contained"
+                        onClick={handleAnalyze}
+                        disabled={loading}
+                        endIcon={loading ? <CircularProgress size={20} sx={{ color: '#0A0B0D' }} /> : <ArrowForwardIcon />}
+                        sx={{ 
+                          flex: 2, 
+                          py: 1.2,
+                          background: 'linear-gradient(135deg, #FF5A46 0%, #FFB238 100%)',
+                          color: '#0A0B0D',
+                          fontWeight: 700,
+                          '&:hover': {
+                            background: 'linear-gradient(135deg, #FF705E 0%, #FFC154 100%)',
+                          },
+                          '&.Mui-disabled': {
+                            background: '#1C1F23',
+                            color: '#6B6E73',
+                            border: '1px solid #2A2D31'
+                          }
+                        }}
+                      >
+                        {loading ? 'Analyzing Scan...' : 'Analyze MRI Scan'}
+                      </Button>
+                    )}
                   </Box>
                 </Box>
               )}
