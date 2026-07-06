@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Card, CardContent, TextField, Button, Typography, Box, Tabs, Tab, Alert, CircularProgress } from '@mui/material';
+import { Container, Card, CardContent, TextField, Button, Typography, Box, Tabs, Tab, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Link } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import type { User } from '@supabase/supabase-js';
@@ -27,6 +27,51 @@ export const LoginPage: React.FC<LoginPageProps> = ({ user }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Forgot password dialog states
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetSuccess, setResetSuccess] = useState<string | null>(null);
+
+  const handleOpenResetDialog = () => {
+    setResetDialogOpen(true);
+    setResetEmail('');
+    setResetError(null);
+    setResetSuccess(null);
+  };
+
+  const handleCloseResetDialog = () => {
+    setResetDialogOpen(false);
+  };
+
+  const handleSendResetLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetLoading(true);
+    setResetError(null);
+    setResetSuccess(null);
+
+    try {
+      if (!resetEmail) {
+        throw new Error('Please enter your email address.');
+      }
+
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (resetErr) throw resetErr;
+
+      setResetSuccess('Password reset link sent! Please check your email.');
+      showNotification('Password reset link sent!', 'success');
+    } catch (err: any) {
+      setResetError(err.message || 'Failed to send reset link. Please try again.');
+      showNotification(err.message || 'Failed to send reset link.', 'error');
+    } finally {
+      setResetLoading(false);
+    }
+  };
 
   // If already logged in, redirect to main page
   useEffect(() => {
@@ -149,8 +194,22 @@ export const LoginPage: React.FC<LoginPageProps> = ({ user }) => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
-              sx={{ mb: 3 }}
+              sx={{ mb: tabIndex === 0 ? 1 : 3 }}
             />
+
+            {tabIndex === 0 && (
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
+                <Link
+                  component="button"
+                  type="button"
+                  variant="body2"
+                  onClick={handleOpenResetDialog}
+                  sx={{ textDecoration: 'none', cursor: 'pointer', fontWeight: 500 }}
+                >
+                  Forgot Password?
+                </Link>
+              </Box>
+            )}
 
             <Button
               type="submit"
@@ -176,6 +235,43 @@ export const LoginPage: React.FC<LoginPageProps> = ({ user }) => {
           Cancel & Use Guest Mode
         </Button>
       </Box>
+
+      {/* Forgot Password Dialog */}
+      <Dialog open={resetDialogOpen} onClose={handleCloseResetDialog} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 600 }}>Reset Password</DialogTitle>
+        <Box component="form" onSubmit={handleSendResetLink}>
+          <DialogContent>
+            <DialogContentText sx={{ mb: 2 }}>
+              Enter your email address and we'll send you a link to reset your password.
+            </DialogContentText>
+            
+            {resetError && <Alert severity="error" sx={{ mb: 2 }}>{resetError}</Alert>}
+            {resetSuccess && <Alert severity="success" sx={{ mb: 2 }}>{resetSuccess}</Alert>}
+
+            <TextField
+              autoFocus
+              required
+              margin="dense"
+              id="reset-email"
+              label="Email Address"
+              type="email"
+              fullWidth
+              variant="outlined"
+              value={resetEmail}
+              onChange={(e) => setResetEmail(e.target.value)}
+              disabled={resetLoading}
+            />
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 3 }}>
+            <Button onClick={handleCloseResetDialog} color="inherit" disabled={resetLoading}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="contained" color="primary" disabled={resetLoading}>
+              {resetLoading ? <CircularProgress size={20} /> : 'Send Reset Link'}
+            </Button>
+          </DialogActions>
+        </Box>
+      </Dialog>
     </Container>
   );
 };

@@ -12,6 +12,7 @@ import { Footer } from './components/Footer';
 import { PredictPage } from './pages/PredictPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { LoginPage } from './pages/LoginPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { NotificationProvider } from './components/NotificationContext';
 
 function App() {
@@ -63,6 +64,9 @@ function App() {
                 
                 {/* Sign in / Register */}
                 <Route path="/login" element={<LoginPage user={user} />} />
+                
+                {/* Reset Password */}
+                <Route path="/reset-password" element={<ResetPasswordPage user={user} />} />
                 
                 {/* Fallback redirect */}
                 <Route path="*" element={<Navigate to="/" replace />} />
