@@ -24,6 +24,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ user }) => {
   const [tabIndex, setTabIndex] = useState(0);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -84,6 +85,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ user }) => {
     setTabIndex(newIndex);
     setError(null);
     setSuccessMsg(null);
+    setConfirmPassword('');
   };
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -93,6 +95,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ user }) => {
     setSuccessMsg(null);
 
     try {
+      if (tabIndex === 1 && password !== confirmPassword) {
+        throw new Error('Passwords do not match.');
+      }
+
       const hashedPassword = await hashPassword(password);
 
       if (tabIndex === 0) {
@@ -125,6 +131,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ user }) => {
           showNotification(successStr, 'success');
           setEmail('');
           setPassword('');
+          setConfirmPassword('');
         }
       }
     } catch (err: any) {
@@ -187,15 +194,32 @@ export const LoginPage: React.FC<LoginPageProps> = ({ user }) => {
               required
               fullWidth
               name="password"
-              label="Password"
+              label={tabIndex === 0 ? "Password" : "Create Password"}
               type="password"
               id="password"
-              autoComplete="current-password"
+              autoComplete={tabIndex === 0 ? "current-password" : "new-password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
-              sx={{ mb: tabIndex === 0 ? 1 : 3 }}
+              sx={{ mb: tabIndex === 0 ? 1 : 2 }}
             />
+
+            {tabIndex === 1 && (
+              <TextField
+                margin="normal"
+                required
+                fullWidth
+                name="confirmPassword"
+                label="Confirm Password"
+                type="password"
+                id="confirmPassword"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                disabled={loading}
+                sx={{ mb: 3 }}
+              />
+            )}
 
             {tabIndex === 0 && (
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
