@@ -9,6 +9,15 @@ interface LoginPageProps {
   user: User | null;
 }
 
+// Helper to SHA-256 hash the password on client-side for transmission obfuscation
+const hashPassword = async (pwd: string): Promise<string> => {
+  const msgUint8 = new TextEncoder().encode(pwd);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashHex;
+};
+
 export const LoginPage: React.FC<LoginPageProps> = ({ user }) => {
   const navigate = useNavigate();
   const { showNotification } = useNotification();
@@ -39,11 +48,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ user }) => {
     setSuccessMsg(null);
 
     try {
+      const hashedPassword = await hashPassword(password);
+
       if (tabIndex === 0) {
         // Log In
         const { error: logInError } = await supabase.auth.signInWithPassword({
           email,
-          password,
+          password: hashedPassword,
         });
         if (logInError) throw logInError;
         showNotification('Welcome back!', 'success');
@@ -52,7 +63,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ user }) => {
         // Sign Up
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
-          password,
+          password: hashedPassword,
+          options: {
+            emailRedirectTo: window.location.origin,
+          },
         });
         if (signUpError) throw signUpError;
         
