@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Container, Grid, Card, CardContent, Typography, Button, Box, CircularProgress, Alert, Paper } from '@mui/material';
+import { Container, Grid, Card, CardContent, Typography, Button, Box, CircularProgress, Alert, Paper, Tabs, Tab, Chip } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
@@ -29,6 +29,7 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PredictionResult | null>(persistedResult);
+  const [activeVisualTab, setActiveVisualTab] = useState<'five_panel' | 'combined' | 'seg' | 'bbox'>('five_panel');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -101,6 +102,7 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
     persistedFile = null;
     persistedImagePreview = null;
     persistedResult = null;
+    setActiveVisualTab('five_panel');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -122,6 +124,7 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
       const res = await apiService.predict(file);
       setResult(res);
       persistedResult = res; // Save to cache
+      setActiveVisualTab('five_panel');
       showNotification('Analysis completed successfully!', 'success');
     } catch (err: any) {
       setError(err.message || 'An error occurred during image processing.');
@@ -148,6 +151,34 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
     } catch (err: any) {
       showNotification(err.message || 'Failed to generate PDF.', 'error');
     }
+  };
+
+  const parseClinicalExplanation = (text?: string) => {
+    if (!text) return { clinician: '', patient: '' };
+    
+    const clinicianMarker = '👨‍⚕️ FOR RADIOLOGISTS & CLINICIANS:';
+    const patientMarker = '👤 FOR PATIENTS & FAMILIES:';
+    
+    const clinicianIdx = text.indexOf(clinicianMarker);
+    const patientIdx = text.indexOf(patientMarker);
+    
+    let clinician = '';
+    let patient = '';
+    
+    if (clinicianIdx !== -1) {
+      const endIdx = patientIdx !== -1 ? patientIdx : text.length;
+      clinician = text.substring(clinicianIdx + clinicianMarker.length, endIdx).trim();
+    }
+    
+    if (patientIdx !== -1) {
+      patient = text.substring(patientIdx + patientMarker.length).trim();
+    }
+    
+    if (!clinician && !patient) {
+      clinician = text.trim();
+    }
+    
+    return { clinician, patient };
   };
 
   const getClassificationColor = (label: string) => {
@@ -528,6 +559,212 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
           </Grid>
         )}
       </Grid>
+
+      {/* Diagnostic Visualizations & Reports */}
+      {result && result.images && (
+        <Box sx={{ mt: 5 }}>
+          <Typography variant="h2" sx={{ mb: 3 }}>
+            Diagnostic Visualizations & AI Insights
+          </Typography>
+          
+          <Grid container spacing={4}>
+            {/* Visual Overlays Card */}
+            <Grid size={{ xs: 12, md: 7 }}>
+              <Card sx={{ borderRadius: 3, height: '100%' }}>
+                <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', height: '100%' }}>
+                  <Typography variant="h3" sx={{ mb: 2, fontSize: '1.25rem', fontWeight: 600 }}>
+                    MRI Scan Overlay Viewers
+                  </Typography>
+                  
+                  <Tabs
+                    value={activeVisualTab}
+                    onChange={(_, val) => setActiveVisualTab(val)}
+                    variant="scrollable"
+                    scrollButtons="auto"
+                    sx={{
+                      mb: 3,
+                      borderBottom: '1px solid #2A2D31',
+                      '& .MuiTab-root': {
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        color: '#9C9FA4',
+                        fontFamily: '"Space Grotesk", sans-serif',
+                        '&.Mui-selected': {
+                          color: '#5CC8FF'
+                        }
+                      },
+                      '& .MuiTabs-indicator': {
+                        backgroundColor: '#5CC8FF'
+                      }
+                    }}
+                  >
+                    <Tab label="5-Panel Overview" value="five_panel" />
+                    <Tab label="Combined Overlay" value="combined" disabled={result.prediction_label === 'No Tumor'} />
+                    <Tab label="Swin-UNet Segmentation" value="seg" disabled={result.prediction_label === 'No Tumor'} />
+                    <Tab label="YOLOv8 Bounding Box" value="bbox" disabled={result.prediction_label === 'No Tumor'} />
+                  </Tabs>
+
+                  {/* Display Selected Overlay Image */}
+                  <Box 
+                    sx={{ 
+                      backgroundColor: '#000000', 
+                      borderRadius: 2, 
+                      border: '1px solid #2A2D31',
+                      display: 'flex', 
+                      justifyContent: 'center', 
+                      alignItems: 'center', 
+                      minHeight: 380,
+                      maxHeight: 500,
+                      overflow: 'hidden',
+                      p: 1
+                    }}
+                  >
+                    {result.images[activeVisualTab] ? (
+                      <img 
+                        src={result.images[activeVisualTab]!} 
+                        alt={`${activeVisualTab} visualization`}
+                        style={{ 
+                          maxWidth: '100%', 
+                          maxHeight: '100%', 
+                          objectFit: 'contain',
+                          borderRadius: 4
+                        }}
+                      />
+                    ) : (
+                      <Box sx={{ p: 4, textAlign: 'center', color: '#9C9FA4' }}>
+                        <Typography variant="body2">
+                          {result.prediction_label === 'No Tumor' 
+                            ? 'No abnormal tissue regions were detected, so outline and bounding box overlays are disabled.' 
+                            : 'Visualization image not generated.'}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                  
+                  {result.segmented_pixels !== undefined && result.prediction_label !== 'No Tumor' && (
+                    <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="body2" sx={{ color: '#9C9FA4', fontSize: '0.85rem' }}>
+                        Segmented Abnormal Tissue Area:
+                      </Typography>
+                      <Chip 
+                        label={`${result.segmented_pixels.toLocaleString()} pixels`}
+                        size="small" 
+                        sx={{ 
+                          backgroundColor: 'rgba(255, 90, 70, 0.12)', 
+                          color: '#FF5A46', 
+                          border: '1px solid rgba(255, 90, 70, 0.25)',
+                          fontWeight: 600,
+                          fontFamily: '"IBM Plex Mono", monospace' 
+                        }} 
+                      />
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Explainable AI (XAI) Reports Card */}
+            <Grid size={{ xs: 12, md: 5 }}>
+              <Card sx={{ borderRadius: 3, height: '100%' }}>
+                <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', height: '100%' }}>
+                  <Typography variant="h3" sx={{ mb: 3, fontSize: '1.25rem', fontWeight: 600 }}>
+                    Explainable AI (XAI) Diagnostic Insights
+                  </Typography>
+
+                  {(() => {
+                    const { clinician, patient } = parseClinicalExplanation(result.explanation_text);
+                    return (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        {clinician && (
+                          <Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                              <Typography 
+                                variant="subtitle2" 
+                                sx={{ 
+                                  color: '#5CC8FF', 
+                                  fontWeight: 700, 
+                                  textTransform: 'uppercase', 
+                                  letterSpacing: '0.05em',
+                                  fontSize: '0.75rem',
+                                  fontFamily: '"Space Grotesk", sans-serif'
+                                }}
+                              >
+                                👨‍⚕️ Clinical Insights (For Radiologists)
+                              </Typography>
+                            </Box>
+                            <Paper 
+                              variant="outlined" 
+                              sx={{ 
+                                p: 2.5, 
+                                backgroundColor: 'rgba(92, 200, 255, 0.04)', 
+                                borderColor: 'rgba(92, 200, 255, 0.15)',
+                                borderRadius: 2
+                              }}
+                            >
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  whiteSpace: 'pre-wrap', 
+                                  lineHeight: 1.6, 
+                                  color: '#E1E3E6',
+                                  fontSize: '0.85rem'
+                                }}
+                              >
+                                {clinician}
+                              </Typography>
+                            </Paper>
+                          </Box>
+                        )}
+
+                        {patient && (
+                          <Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                              <Typography 
+                                variant="subtitle2" 
+                                sx={{ 
+                                  color: '#4ADE9C', 
+                                  fontWeight: 700, 
+                                  textTransform: 'uppercase', 
+                                  letterSpacing: '0.05em',
+                                  fontSize: '0.75rem',
+                                  fontFamily: '"Space Grotesk", sans-serif'
+                                }}
+                              >
+                                👤 Patient Explanation
+                              </Typography>
+                            </Box>
+                            <Paper 
+                              variant="outlined" 
+                              sx={{ 
+                                p: 2.5, 
+                                backgroundColor: 'rgba(74, 222, 156, 0.04)', 
+                                borderColor: 'rgba(74, 222, 156, 0.15)',
+                                borderRadius: 2
+                              }}
+                            >
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  whiteSpace: 'pre-wrap', 
+                                  lineHeight: 1.6, 
+                                  color: '#E1E3E6',
+                                  fontSize: '0.85rem'
+                                }}
+                              >
+                                {patient}
+                              </Typography>
+                            </Paper>
+                          </Box>
+                        )}
+                      </Box>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        </Box>
+      )}
 
       {/* Frequently Asked Questions / Explanation */}
       <Box sx={{ mt: 8 }}>

@@ -29,3 +29,8 @@ __pycache__/
 .DS_Store
 Thumbs.db
 *.log
+
+# ML Models and Weights
+*.pth
+*.pt
+*.zip

@@ -22,6 +22,14 @@ export interface PredictionResult {
   confidence: number;
   model_version: string;
   saved_to_history: boolean;
+  segmented_pixels?: number;
+  explanation_text?: string;
+  images?: {
+    bbox?: string | null;
+    seg?: string | null;
+    combined?: string | null;
+    five_panel?: string | null;
+  };
   record?: {
     id: string;
     image_path: string;

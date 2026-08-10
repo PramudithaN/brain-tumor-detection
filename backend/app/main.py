@@ -89,7 +89,9 @@ async def predict_tumor(
     
     # 3. Model Inference
     try:
-        label, confidence = classifier.predict(file_bytes)
+        prediction_result = classifier.predict(file_bytes, filename=file.filename or "mri_scan.png")
+        label = prediction_result["prediction_label"]
+        confidence = prediction_result["confidence"]
     except Exception as e:
         logger.error(f"Inference error: {e}")
         raise HTTPException(
@@ -101,7 +103,10 @@ async def predict_tumor(
         "prediction_label": label,
         "confidence": confidence,
         "model_version": classifier.model_version,
-        "saved_to_history": False
+        "saved_to_history": False,
+        "segmented_pixels": prediction_result.get("segmented_pixels", 0),
+        "explanation_text": prediction_result.get("explanation_text", ""),
+        "images": prediction_result.get("images", {})
     }
 
     # 4. Save to history if logged in
