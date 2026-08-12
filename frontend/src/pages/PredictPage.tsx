@@ -9,7 +9,7 @@ import type { User } from '@supabase/supabase-js';
 import { apiService } from '../apiService';
 import type { PredictionResult } from '../apiService';
 import { useNotification } from '../components/NotificationContext';
-import { downloadPDFReport } from '../utils/pdfGenerator';
+import { downloadPDFReport, generatePDFDoc } from '../utils/pdfGenerator';
 
 interface PredictPageProps {
   user: User | null;
@@ -31,6 +31,8 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
   const [result, setResult] = useState<PredictionResult | null>(persistedResult);
   const [activeVisualTab, setActiveVisualTab] = useState<'five_panel' | 'combined' | 'seg' | 'bbox'>('five_panel');
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [reportUrl, setReportUrl] = useState<string | null>(null);
+  const [reportViewOpen, setReportViewOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -152,6 +154,29 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
       showNotification('PDF report downloaded successfully.', 'success');
     } catch (err: any) {
       showNotification(err.message || 'Failed to generate PDF.', 'error');
+    }
+  };
+
+  const handleViewReport = async () => {
+    if (!result) return;
+    try {
+      showNotification('Preparing report preview...', 'info');
+      const doc = await generatePDFDoc({
+        id: result.record?.id,
+        email: user?.email || undefined,
+        prediction_label: result.prediction_label,
+        confidence: result.confidence,
+        model_version: result.model_version,
+        created_at: result.record?.created_at || new Date().toISOString(),
+        imageUrl: imagePreview,
+        explanation_text: result.explanation_text,
+      });
+      
+      const blobUrl = doc.output('bloburl');
+      setReportUrl(blobUrl);
+      setReportViewOpen(true);
+    } catch (err: any) {
+      showNotification(err.message || 'Failed to generate report preview.', 'error');
     }
   };
 
@@ -534,28 +559,49 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
                   </Typography>
                 </Box>
 
-                {/* Download Report Button */}
-                <Button
-                  variant="outlined"
-                  fullWidth
-                  onClick={handleDownloadReport}
-                  startIcon={<DownloadIcon />}
-                  sx={{ 
-                    mt: 2, 
-                    py: 1,
-                    borderColor: '#3D4147',
-                    color: '#F2F1ED',
-                    fontWeight: 600,
-                    textTransform: 'none',
-                    '&:hover': {
-                      backgroundColor: 'rgba(92, 200, 255, 0.08)',
-                      borderColor: '#5CC8FF',
-                      color: '#5CC8FF'
-                    }
-                  }}
-                >
-                  Download PDF Report
-                </Button>
+                {/* Report Action Buttons */}
+                <Box sx={{ display: 'flex', gap: 2, mt: 2.5 }}>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    onClick={handleViewReport}
+                    sx={{ 
+                      py: 1,
+                      borderColor: '#3D4147',
+                      color: '#9C9FA4',
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      '&:hover': {
+                        backgroundColor: 'rgba(92, 200, 255, 0.05)',
+                        borderColor: '#3D4147',
+                        color: '#F2F1ED'
+                      }
+                    }}
+                  >
+                    View Report
+                  </Button>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={handleDownloadReport}
+                    startIcon={<DownloadIcon />}
+                    sx={{ 
+                      py: 1,
+                      background: 'linear-gradient(135deg, #1C1F23 0%, #2A2D31 100%)',
+                      border: '1px solid #3D4147',
+                      color: '#F2F1ED',
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, #2A2D31 0%, #3D4147 100%)',
+                        borderColor: '#5CC8FF',
+                        color: '#5CC8FF'
+                      }
+                    }}
+                  >
+                    Download PDF
+                  </Button>
+                </Box>
               </CardContent>
             </Card>
           </Grid>
@@ -830,6 +876,49 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Report Preview Dialog */}
+      <Dialog
+        open={reportViewOpen}
+        onClose={() => setReportViewOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            backgroundColor: '#15171A',
+            backgroundImage: 'none',
+            border: '1px solid #2A2D31',
+            borderRadius: 3,
+            overflow: 'hidden'
+          }
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 3, py: 2, borderBottom: '1px solid #2A2D31' }}>
+          <Typography variant="h3" sx={{ fontSize: '1.2rem', fontWeight: 700, m: 0 }}>
+            Analysis Report Print Preview
+          </Typography>
+          <Button 
+            size="small"
+            onClick={() => setReportViewOpen(false)}
+            sx={{ 
+              color: '#9C9FA4', 
+              minWidth: 'auto',
+              '&:hover': { color: '#FF5A46', backgroundColor: 'transparent' } 
+            }}
+          >
+            Close [✕]
+          </Button>
+        </Box>
+        <DialogContent sx={{ p: 0, height: '75vh', overflow: 'hidden' }}>
+          {reportUrl && (
+            <iframe 
+              src={reportUrl} 
+              title="Report PDF Preview"
+              style={{ width: '100%', height: '100%', border: 'none' }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Frequently Asked Questions / Explanation */}
       <Box sx={{ mt: 8 }}>

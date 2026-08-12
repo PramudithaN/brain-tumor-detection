@@ -39,7 +39,7 @@ const getBase64Image = async (url: string): Promise<string> => {
   });
 };
 
-export const downloadPDFReport = async (data: PDFReportData): Promise<void> => {
+export const generatePDFDoc = async (data: PDFReportData): Promise<jsPDF> => {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -58,22 +58,6 @@ export const downloadPDFReport = async (data: PDFReportData): Promise<void> => {
     }
   };
 
-  const getClassificationDescription = (label: string): string => {
-    switch (label) {
-      case 'Glioma':
-        return 'Gliomas are primary brain tumors that originate in the glial cells (the supportive cells of the brain). Depending on their grade, they can be slow-growing or highly aggressive and invasive. They require prompt evaluation by an oncologist and neurosurgeon.';
-      case 'Meningioma':
-        return 'Meningiomas arise from the meninges—the protective membranes surrounding the brain and spinal cord. The majority of meningiomas are slow-growing and benign, though they can cause neurological symptoms if they press on nearby brain tissue.';
-      case 'Pituitary':
-        return 'Pituitary tumors develop in the pituitary gland at the base of the brain, which regulates the body\'s hormonal balance. Most are non-cancerous adenomas, but they can affect hormone production or cause vision issues by pressing on the optic nerve.';
-      case 'No Tumor':
-      case 'No tumor detected':
-        return 'The machine learning analysis indicates no visible signs of Glioma, Meningioma, or Pituitary tumor tissue in the uploaded brain MRI scan. This represents a normal test screening result.';
-      default:
-        return 'Undetermined classification details. Please verify scan formatting.';
-    }
-  };
-
   const statusColor = getClassificationColor(data.prediction_label);
   const formattedDate = new Date(data.created_at).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -83,197 +67,143 @@ export const downloadPDFReport = async (data: PDFReportData): Promise<void> => {
     minute: '2-digit'
   });
 
-  // --- 1. Header (Brand Logo format) ---
-  // Background style
+  // --- 1. Header (Compact Dark Brand Logo Bar) ---
   doc.setFillColor(15, 17, 20); // Dark background header bar
-  doc.rect(0, 0, 210, 35, 'F');
+  doc.rect(0, 0, 210, 22, 'F');
   
   // Brand Logo: "NeuroScan" (White) "AI" (Cyan)
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
+  doc.setFontSize(18);
   doc.setTextColor(242, 241, 237); // White
-  doc.text('NeuroScan', 20, 22);
+  doc.text('NeuroScan', 20, 14);
   
-  // Measure width of 'NeuroScan' to align 'AI'
   const textWidth = doc.getTextWidth('NeuroScan');
-  doc.setTextColor(92, 200, 255); // Cyan color (#5CC8FF)
-  doc.text('AI', 20 + textWidth + 1, 22);
+  doc.setTextColor(92, 200, 255); // Cyan color
+  doc.text('AI', 20 + textWidth + 1, 14);
 
-  // Subtitle / Document Type
+  // Subtitle / Document Type (Right-aligned inside dark header)
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
+  doc.setFontSize(8.5);
   doc.setTextColor(156, 159, 164); // Muted gray
-  doc.text('CLINICAL MRI SCAN INFECTIOUS & TUMOR ANALYSIS REPORT', 20, 28);
+  doc.text('CLINICAL MRI DIAGNOSIS & INSIGHTS REPORT', 122, 13);
   
-  // Decorative Color Bar (cyan/orange gradient color line)
+  // Decorative Color Bar
   doc.setFillColor(statusColor[0], statusColor[1], statusColor[2]);
-  doc.rect(0, 35, 210, 2, 'F');
+  doc.rect(0, 22, 210, 2, 'F');
 
-  // --- 2. Report Metadata ---
+  // --- 2. Report Metadata (Starts at Y=30) ---
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
+  doc.setFontSize(9.5);
   doc.setTextColor(10, 11, 13);
-  doc.text('METADATA ANALYSIS REPORT', 20, 50);
+  doc.text('METADATA ANALYSIS REPORT', 20, 31);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9.5);
+  doc.setFontSize(8.5);
   doc.setTextColor(70, 75, 80);
   
   // Left column
-  doc.text(`Patient Ref: ${data.email || 'Guest Mode (Anonymous Scan)'}`, 20, 58);
-  doc.text(`Record ID: ${data.id || 'N/A (unsaved)'}`, 20, 64);
-  doc.text(`Processed Date: ${formattedDate}`, 20, 70);
+  doc.text(`Patient Ref: ${data.email || 'Guest Mode (Anonymous Scan)'}`, 20, 38);
+  doc.text(`Record ID: ${data.id || 'N/A (unsaved)'}`, 20, 43);
+  doc.text(`Processed Date: ${formattedDate}`, 20, 48);
 
   // Right column
-  doc.text(`Inference Engine: ${data.model_version}`, 120, 58);
-  doc.text(`Format: High-Resolution T1/T2 MRI`, 120, 64);
-  doc.text(`Status: Completed`, 120, 70);
+  doc.text(`Inference Engine: ${data.model_version}`, 120, 38);
+  doc.text(`Format: High-Resolution T1/T2 MRI`, 120, 43);
+  doc.text(`Status: Completed`, 120, 48);
 
   // Divider Line
   doc.setDrawColor(220, 222, 225);
-  doc.setLineWidth(0.5);
-  doc.line(20, 76, 190, 76);
+  doc.setLineWidth(0.4);
+  doc.line(20, 52, 190, 52);
 
-  // --- 3. Abnormality Findings & Image Preview ---
-  let nextY = 86;
+  // --- 3. Abnormality Findings & Image Preview (Starts at Y=56) ---
+  let nextY = 56;
 
-  // Render MRI image preview if available
   if (data.imageUrl) {
     try {
       const base64Img = await getBase64Image(data.imageUrl);
       
-      // Draw border
+      // Draw border for image
       doc.setDrawColor(42, 45, 49);
       doc.setFillColor(0, 0, 0);
-      doc.rect(20, 86, 75, 75, 'FD');
+      doc.rect(20, 56, 45, 45, 'FD');
       
       // Embed image inside border
-      doc.addImage(base64Img, 'JPEG', 21, 87, 73, 73);
+      doc.addImage(base64Img, 'JPEG', 21, 57, 43, 43);
       
       // Shift metadata right
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
+      doc.setFontSize(9.5);
       doc.setTextColor(10, 11, 13);
-      doc.text('DIAGNOSTIC FINDINGS', 105, 90);
+      doc.text('DIAGNOSTIC FINDINGS', 75, 60);
       
       // Classification Box
       doc.setFillColor(245, 246, 248);
-      doc.rect(105, 96, 85, 24, 'F');
+      doc.rect(75, 64, 115, 14, 'F');
       
       // Small Status Dot
       doc.setFillColor(statusColor[0], statusColor[1], statusColor[2]);
-      doc.circle(112, 108, 2, 'F');
+      doc.circle(81, 71, 1.8, 'F');
       
       // Result Label
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(14);
+      doc.setFontSize(11);
       doc.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
-      doc.text(data.prediction_label === 'No Tumor' ? 'No Tumor Detected' : `${data.prediction_label} Tumor`, 118, 110);
+      doc.text(data.prediction_label === 'No Tumor' ? 'No Tumor Detected' : `${data.prediction_label} Tumor`, 86, 74);
       
       // Confidence Value
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
+      doc.setFontSize(8.5);
       doc.setTextColor(10, 11, 13);
-      doc.text('Classification Confidence:', 105, 130);
+      doc.text(`Classification Confidence: ${(data.confidence * 100).toFixed(2)}%`, 75, 87);
       
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(12);
-      doc.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
-      doc.text(`${(data.confidence * 100).toFixed(2)}%`, 105, 138);
-
       // Confidence bar container
       doc.setFillColor(230, 232, 235);
-      doc.rect(105, 142, 85, 3, 'F');
+      doc.rect(75, 92, 115, 2.5, 'F');
       
       // Confidence bar filled
       doc.setFillColor(statusColor[0], statusColor[1], statusColor[2]);
-      doc.rect(105, 142, 85 * data.confidence, 3, 'F');
+      doc.rect(75, 92, 115 * data.confidence, 2.5, 'F');
 
-      nextY = 175;
+      nextY = 107;
     } catch (e) {
       console.warn("Could not embed image, drawing text layout instead:", e);
     }
   }
 
   // If image was not drawn, render full-width text findings
-  if (nextY === 86) {
+  if (nextY === 56) {
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
+    doc.setFontSize(9.5);
     doc.setTextColor(10, 11, 13);
-    doc.text('DIAGNOSTIC FINDINGS', 20, 86);
+    doc.text('DIAGNOSTIC FINDINGS', 20, 56);
     
-    // Result details
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
+    doc.setFontSize(13);
     doc.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
-    doc.text(`${data.prediction_label === 'No Tumor' ? 'No Tumor Detected' : `${data.prediction_label} Tumor`} (${(data.confidence * 100).toFixed(2)}% Confidence)`, 20, 96);
+    doc.text(`${data.prediction_label === 'No Tumor' ? 'No Tumor Detected' : `${data.prediction_label} Tumor`} (${(data.confidence * 100).toFixed(2)}% Confidence)`, 20, 64);
     
-    nextY = 110;
+    nextY = 74;
   }
 
-  // --- 4. Description Summary ---
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10.5);
-  doc.setTextColor(10, 11, 13);
-  doc.text('CLASSIFICATION OVERVIEW', 20, nextY);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9.5);
-  doc.setTextColor(70, 75, 80);
-  
-  // Word wrap description text
-  const splitDescription = doc.splitTextToSize(getClassificationDescription(data.prediction_label), 170);
-  doc.text(splitDescription, 20, nextY + 6);
-
-  // --- 5. Page 1 Footer ---
+  // Divider Line before XAI
   doc.setDrawColor(220, 222, 225);
-  doc.setLineWidth(0.5);
-  doc.line(20, 280, 190, 280);
+  doc.setLineWidth(0.4);
+  doc.line(20, nextY, 190, nextY);
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(156, 159, 164);
-  doc.text('NeuroScanAI Clinical Portal • Analysis Report Export', 20, 286);
-  doc.text('Page 1 of 2', 174, 286);
-
-  // --- Page Break for Page 2 (XAI and Disclaimer) ---
-  doc.addPage();
-  
-  // Page 2 Header (Muted Header Bar)
-  doc.setFillColor(15, 17, 20);
-  doc.rect(0, 0, 210, 22, 'F');
-  
+  // --- 4. Explainable AI (XAI) Reports (Starts at Y=nextY + 5) ---
+  let xaiY = nextY + 5;
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(242, 241, 237);
-  doc.text('NeuroScan', 20, 14);
-  
-  const nsWidth = doc.getTextWidth('NeuroScan');
-  doc.setTextColor(92, 200, 255);
-  doc.text('AI', 20 + nsWidth + 1, 14);
-  
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5);
-  doc.setTextColor(156, 159, 164);
-  doc.text('EXPLAINABLE AI (XAI) & DISCLAIMER', 130, 14);
-  
-  doc.setFillColor(statusColor[0], statusColor[1], statusColor[2]);
-  doc.rect(0, 22, 210, 1, 'F');
-  
-  // --- Page 2 Content: Explainable AI (XAI) Assistance Report ---
-  let yPos = 38;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
+  doc.setFontSize(10);
   doc.setTextColor(10, 11, 13);
-  doc.text('EXPLAINABLE AI (XAI) ASSISTANCE REPORT', 20, yPos);
+  doc.text('EXPLAINABLE AI (XAI) ASSISTANCE INSIGHTS', 20, xaiY);
   
-  yPos += 8;
+  xaiY += 5;
   
   const text = data.explanation_text || '';
   const clinicianMarker = 'FOR RADIOLOGISTS & CLINICIANS:';
   const patientMarker = 'FOR PATIENTS & FAMILIES:';
   
-  // Clean up emojis and markers in text parsing
   const cleanLineBreaks = (t: string) => {
     return t.replace(/•/g, '-').replace(/[*]/g, '');
   };
@@ -289,59 +219,59 @@ export const downloadPDFReport = async (data: PDFReportData): Promise<void> => {
     clinicianText = cleanLineBreaks(text.replace(/={3,}/g, '').replace(/🩺 EXPLAINABLE AI \(XAI\) ASSISTANCE REPORT/g, '').replace(/👨‍⚕️/g, '').replace(/👤/g, '').trim());
   }
 
-  // Draw Clinician Card
+  // Draw Clinician Card (Dynamic Height)
   if (clinicianText) {
     const splitClinician = doc.splitTextToSize(clinicianText, 158);
-    const clinicianLinesHeight = splitClinician.length * 5;
-    const cardHeight = clinicianLinesHeight + 16;
+    const clinicianLinesHeight = splitClinician.length * 4.2;
+    const cardHeight = clinicianLinesHeight + 11;
     
     doc.setFillColor(244, 248, 253); // Light blue card
-    doc.rect(20, yPos, 170, cardHeight, 'F');
+    doc.rect(20, xaiY, 170, cardHeight, 'F');
     
     // Border left (blue accent line)
     doc.setFillColor(59, 130, 246);
-    doc.rect(20, yPos, 2, cardHeight, 'F');
+    doc.rect(20, xaiY, 1.8, cardHeight, 'F');
     
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.5);
+    doc.setFontSize(8.5);
     doc.setTextColor(30, 58, 138); // Dark blue text
-    doc.text('CLINICAL & RADIOLOGICAL ASSISTANCE', 26, yPos + 6);
+    doc.text('CLINICAL & RADIOLOGICAL ASSISTANCE', 25, xaiY + 5);
     
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.5);
+    doc.setFontSize(8);
     doc.setTextColor(30, 41, 59);
-    doc.text(splitClinician, 26, yPos + 12);
+    doc.text(splitClinician, 25, xaiY + 10);
     
-    yPos += cardHeight + 8;
+    xaiY += cardHeight + 5;
   }
   
-  // Draw Patient Card
+  // Draw Patient Card (Dynamic Height)
   if (patientText) {
     const splitPatient = doc.splitTextToSize(patientText, 158);
-    const patientLinesHeight = splitPatient.length * 5;
-    const cardHeight = patientLinesHeight + 16;
+    const patientLinesHeight = splitPatient.length * 4.2;
+    const cardHeight = patientLinesHeight + 11;
     
     doc.setFillColor(240, 253, 244); // Light green card
-    doc.rect(20, yPos, 170, cardHeight, 'F');
+    doc.rect(20, xaiY, 170, cardHeight, 'F');
     
     // Border left (green accent line)
     doc.setFillColor(34, 197, 94);
-    doc.rect(20, yPos, 2, cardHeight, 'F');
+    doc.rect(20, xaiY, 1.8, cardHeight, 'F');
     
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.5);
+    doc.setFontSize(8.5);
     doc.setTextColor(20, 83, 45); // Dark green text
-    doc.text('PATIENT & FAMILY GUIDANCE', 26, yPos + 6);
+    doc.text('PATIENT & FAMILY GUIDANCE', 25, xaiY + 5);
     
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.5);
+    doc.setFontSize(8);
     doc.setTextColor(30, 41, 59);
-    doc.text(splitPatient, 26, yPos + 12);
+    doc.text(splitPatient, 25, xaiY + 10);
     
-    yPos += cardHeight + 8;
+    xaiY += cardHeight + 5;
   }
 
-  // --- Page 2 Disclaimer ---
+  // --- 5. Medical Disclaimer ---
   const disclaimerY = 238;
   
   // Background Box
@@ -350,24 +280,24 @@ export const downloadPDFReport = async (data: PDFReportData): Promise<void> => {
   
   // Border left
   doc.setFillColor(239, 68, 68); // Darker red highlight
-  doc.rect(20, disclaimerY, 2, 26, 'F');
+  doc.rect(20, disclaimerY, 1.8, 26, 'F');
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
+  doc.setFontSize(8);
   doc.setTextColor(153, 27, 27); // Dark red text
-  doc.text('IMPORTANT CLINICAL DISCLAIMER:', 25, disclaimerY + 6);
+  doc.text('IMPORTANT CLINICAL DISCLAIMER:', 25, disclaimerY + 5);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.8);
+  doc.setFontSize(7.5);
   doc.setTextColor(153, 27, 27);
   
   const disclaimerText = 'This report is generated automatically by an artificial intelligence image recognition model for informational and screening support purposes only. It does not constitute a formal diagnosis, medical advice, or therapeutic guide. Results should be verified and confirmed by a certified radiologist or neuro-clinical medical professional before initiating any treatment plans.';
   const splitDisclaimer = doc.splitTextToSize(disclaimerText, 160);
-  doc.text(splitDisclaimer, 25, disclaimerY + 12);
+  doc.text(splitDisclaimer, 25, disclaimerY + 11);
 
-  // --- Page 2 Footer ---
+  // --- 6. Footer ---
   doc.setDrawColor(220, 222, 225);
-  doc.setLineWidth(0.5);
+  doc.setLineWidth(0.4);
   doc.line(20, 280, 190, 280);
 
   doc.setFont('helvetica', 'normal');
@@ -375,9 +305,13 @@ export const downloadPDFReport = async (data: PDFReportData): Promise<void> => {
   doc.setTextColor(156, 159, 164);
   
   doc.text('NeuroScanAI Clinical Portal • Analysis Report Export', 20, 286);
-  doc.text('Page 2 of 2', 174, 286);
+  doc.text('Page 1 of 1', 174, 286);
 
-  // Save the PDF file
+  return doc;
+};
+
+export const downloadPDFReport = async (data: PDFReportData): Promise<void> => {
+  const doc = await generatePDFDoc(data);
   const sanitizeFilename = (label: string) => {
     return label.toLowerCase().replace(/\s+/g, '-');
   };
