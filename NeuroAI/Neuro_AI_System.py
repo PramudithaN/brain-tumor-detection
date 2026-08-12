@@ -234,15 +234,31 @@ def load_local_models():
                     cfg_p = os.path.join(root, f)
                     break
 
-    # 2. Locate Swin-UNet & YOLO weights
+    # 2. Locate Swin-UNet & YOLO weights, falling back to Hugging Face Model Hub if missing
     swin_p = os.path.join(BASE_DIR, 'output_finetune', 'best_model.pth')
     if not os.path.exists(swin_p):
         swin_p = os.path.join(BASE_DIR, 'best_model.pth')
         
     yolo_p = os.path.join(BASE_DIR, 'yolo_best.pt')
 
-    if not os.path.exists(swin_p) or not os.path.exists(yolo_p):
-        raise FileNotFoundError(f"Missing weights file: Swin-UNet ({swin_p}) or YOLO ({yolo_p})")
+    if not os.path.exists(swin_p) or not os.path.exists(yolo_p) or not all(os.path.exists(os.path.join(BASE_DIR, f"densenet121_{cls.lower()}.pth")) for cls in CLASSES):
+        print("[*] One or more weight files are missing locally. Attempting to download from Hugging Face Model Hub...")
+        try:
+            from huggingface_hub import hf_hub_download
+            repo_id = "PramudithaN/brain-tumor-models"
+            hf_token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_TOKEN")
+            
+            if not os.path.exists(swin_p):
+                print(f"[*] Downloading best_model.pth from HF Hub repo {repo_id}...")
+                swin_p = hf_hub_download(repo_id=repo_id, filename="best_model.pth", token=hf_token)
+                
+            if not os.path.exists(yolo_p):
+                print(f"[*] Downloading yolo_best.pt from HF Hub repo {repo_id}...")
+                yolo_p = hf_hub_download(repo_id=repo_id, filename="yolo_best.pt", token=hf_token)
+        except Exception as e:
+            print(f"[!] Error downloading weights from Hugging Face: {e}")
+            if not os.path.exists(swin_p) or not os.path.exists(yolo_p):
+                raise FileNotFoundError(f"Missing weight files and failed to download from HF: Swin-UNet ({swin_p}) or YOLO ({yolo_p})")
 
     print(f"[*] Config YAML  : {cfg_p}")
     print(f"[*] Swin-UNet Pt : {swin_p}")
@@ -258,6 +274,15 @@ def load_local_models():
         if not os.path.exists(ckpt_p):
             ckpt_p = os.path.join(EXTRACTED_DIR, ckpt_name)
             
+        if not os.path.exists(ckpt_p):
+            try:
+                from huggingface_hub import hf_hub_download
+                print(f"[*] Downloading {ckpt_name} from HF Hub...")
+                hf_token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_TOKEN")
+                ckpt_p = hf_hub_download(repo_id="PramudithaN/brain-tumor-models", filename=ckpt_name, token=hf_token)
+            except Exception as e:
+                print(f"[!] Warning: Failed to download specialist weights {ckpt_name}: {e}")
+
         m = build_specialist_model().to(device)
         if os.path.exists(ckpt_p):
             m.load_state_dict(torch.load(ckpt_p, map_location=device, weights_only=False))
@@ -269,86 +294,6 @@ def load_local_models():
 
     return pipeline, specialists
 
-def run_mock_diagnosis(input_path, output_dir):
-    print("[*] Running Mock Diagnosis Pipeline...")
-    try:
-        img_rgb = load_input_file(input_path)
-    except Exception as e:
-        print(f"[!] Error loading input file: {e}")
-        img_rgb = np.zeros((224, 224, 3), dtype=np.uint8)
-        
-    h, w, _ = img_rgb.shape
-    
-    bbox_path = os.path.join(output_dir, 'complete_test_bbox_output.png')
-    seg_path = os.path.join(output_dir, 'complete_test_seg_output.png')
-    combined_path = os.path.join(output_dir, 'complete_test_combined_output.png')
-    five_panel_path = os.path.join(output_dir, 'complete_diagnosis_5panel_output.png')
-    
-    classes = ['GLIOMA', 'MENINGIOMA', 'PITUITARY', 'NOTUMOR']
-    class_idx = len(input_path) % len(classes)
-    pred_class = classes[class_idx]
-    
-    conf_percent = 85.0 + (len(input_path) % 14)
-    total_red_pixels = 0 if pred_class == 'NOTUMOR' else int(h * w * 0.05)
-    
-    bbox_img = img_rgb.copy()
-    seg_img = img_rgb.copy()
-    combined_img = img_rgb.copy()
-    
-    if pred_class != 'NOTUMOR':
-        x1, y1 = int(w * 0.35), int(h * 0.35)
-        x2, y2 = int(w * 0.65), int(h * 0.65)
-        cv2.rectangle(bbox_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-        
-        center = (int(w * 0.5), int(h * 0.5))
-        axes = (int(w * 0.12), int(h * 0.12))
-        cv2.ellipse(seg_img, center, axes, 0, 0, 360, (255, 0, 0), 2)
-        
-        cv2.rectangle(combined_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-        cv2.ellipse(combined_img, center, axes, 0, 0, 360, (255, 0, 0), 2)
-        
-    cv2.imwrite(bbox_path, cv2.cvtColor(bbox_img, cv2.COLOR_RGB2BGR))
-    cv2.imwrite(seg_path, cv2.cvtColor(seg_img, cv2.COLOR_RGB2BGR))
-    cv2.imwrite(combined_path, cv2.cvtColor(combined_img, cv2.COLOR_RGB2BGR))
-    
-    xai_overlay = combined_img.copy()
-    if pred_class != 'NOTUMOR':
-        mask = np.zeros((h, w), dtype=np.uint8)
-        cv2.circle(mask, (int(w * 0.5), int(h * 0.5)), int(w * 0.15), 255, -1)
-        heatmap = cv2.applyColorMap(mask, cv2.COLORMAP_JET)
-        heatmap_rgb = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
-        xai_overlay = cv2.addWeighted(combined_img, 0.7, heatmap_rgb, 0.3, 0)
-        
-    fig, axes = plt.subplots(1, 5, figsize=(25, 5))
-    axes[0].imshow(img_rgb[:, :, 0], cmap='gray'); axes[0].set_title('Original FLAIR Scan', fontweight='bold'); axes[0].axis('off')
-    
-    if pred_class == 'NOTUMOR':
-        axes[1].imshow(bbox_img); axes[1].set_title('No Bounding Box (Normal)', fontweight='bold', color='gray'); axes[1].axis('off')
-        axes[2].imshow(seg_img); axes[2].set_title('No Segmentation (Normal)', fontweight='bold', color='gray'); axes[2].axis('off')
-        axes[3].imshow(combined_img); axes[3].set_title('Clean MRI Scan', fontweight='bold', color='gray'); axes[3].axis('off')
-    else:
-        axes[1].imshow(bbox_img); axes[1].set_title('YOLO Bounding Box (Mock)', fontweight='bold', color='green'); axes[1].axis('off')
-        axes[2].imshow(seg_img); axes[2].set_title('Swin-UNet Red Line (Mock)', fontweight='bold', color='red'); axes[2].axis('off')
-        axes[3].imshow(combined_img); axes[3].set_title('Combined Display (Mock)', fontweight='bold', color='purple'); axes[3].axis('off')
-        
-    axes[4].imshow(xai_overlay); axes[4].set_title('Explainable AI (Grad-CAM Mock)', fontweight='bold', color='darkred'); axes[4].axis('off')
-    plt.suptitle(f'MOCK NEURO AI DIAGNOSIS: {pred_class} ({conf_percent:.1f}% Confidence)', fontsize=15, fontweight='bold', y=1.04)
-    plt.tight_layout()
-    plt.savefig(five_panel_path, bbox_inches='tight', dpi=300)
-    plt.close(fig)
-    
-    return {
-        'pred_class': pred_class,
-        'conf_percent': conf_percent,
-        'segmented_pixels': total_red_pixels,
-        'scores': {
-            'GLIOMA': 0.8 if pred_class == 'GLIOMA' else 0.05,
-            'MENINGIOMA': 0.8 if pred_class == 'MENINGIOMA' else 0.05,
-            'PITUITARY': 0.8 if pred_class == 'PITUITARY' else 0.05,
-            'NOTUMOR': 0.8 if pred_class == 'NOTUMOR' else 0.05
-        }
-    }
-
 # -----------------------------------------------------------------------------
 # 6. Main Prediction Logic & File Saver
 # -----------------------------------------------------------------------------
@@ -358,11 +303,7 @@ def run_diagnosis(input_path, output_dir=None, pipeline=None, specialists=None):
     os.makedirs(output_dir, exist_ok=True)
 
     if pipeline is None or specialists is None:
-        try:
-            pipeline, specialists = load_local_models()
-        except Exception as e:
-            print(f"[!] Error loading local models: {e}. Falling back to internal mock diagnosis.")
-            return run_mock_diagnosis(input_path, output_dir)
+        pipeline, specialists = load_local_models()
 
     img_rgb = load_input_file(input_path)
     h_img, w_img, _ = img_rgb.shape
