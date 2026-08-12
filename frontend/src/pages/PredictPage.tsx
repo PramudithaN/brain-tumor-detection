@@ -172,7 +172,7 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
         explanation_text: result.explanation_text,
       });
       
-      const blobUrl = doc.output('bloburl');
+      const blobUrl = doc.output('bloburl').toString();
       setReportUrl(blobUrl);
       setReportViewOpen(true);
     } catch (err: any) {
@@ -655,7 +655,7 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
                   {/* Display Selected Overlay Image */}
                   <Box 
                     onClick={() => {
-                      if (result.images[activeVisualTab]) {
+                      if (result.images?.[activeVisualTab]) {
                         setLightboxOpen(true);
                       }
                     }}
@@ -670,17 +670,17 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
                       maxHeight: 500,
                       overflow: 'hidden',
                       p: 1,
-                      cursor: result.images[activeVisualTab] ? 'zoom-in' : 'default',
+                      cursor: result.images?.[activeVisualTab] ? 'zoom-in' : 'default',
                       transition: 'all 0.2s ease-in-out',
-                      '&:hover': result.images[activeVisualTab] ? {
+                      '&:hover': result.images?.[activeVisualTab] ? {
                         borderColor: '#5CC8FF',
                         backgroundColor: '#050608'
                       } : {}
                     }}
                   >
-                    {result.images[activeVisualTab] ? (
+                    {result.images?.[activeVisualTab] ? (
                       <img 
-                        src={result.images[activeVisualTab]!} 
+                        src={result.images?.[activeVisualTab] || ''} 
                         alt={`${activeVisualTab} visualization`}
                         style={{ 
                           maxWidth: '100%', 
@@ -826,14 +826,14 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
       )}
 
       {/* Lightbox Dialog for Image Enlarge */}
-      {result && result.images[activeVisualTab] && (
+      {result && result.images && result.images[activeVisualTab] && (
         <Dialog
           open={lightboxOpen}
           onClose={() => setLightboxOpen(false)}
           maxWidth="lg"
           fullWidth
-          PaperProps={{
-            sx: {
+          sx={{
+            '& .MuiDialog-paper': {
               backgroundColor: '#15171A',
               backgroundImage: 'none',
               border: '1px solid #2A2D31',
@@ -863,7 +863,7 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
           </Box>
           <DialogContent sx={{ p: 0, backgroundColor: '#000000', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh', maxHeight: '80vh', overflow: 'hidden' }}>
             <img 
-              src={result.images[activeVisualTab]!} 
+              src={result.images[activeVisualTab] || ''} 
               alt={`${activeVisualTab} expanded view`}
               style={{ 
                 maxWidth: '100%', 
@@ -883,8 +883,8 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
         onClose={() => setReportViewOpen(false)}
         maxWidth="md"
         fullWidth
-        PaperProps={{
-          sx: {
+        sx={{
+          '& .MuiDialog-paper': {
             backgroundColor: '#15171A',
             backgroundImage: 'none',
             border: '1px solid #2A2D31',
