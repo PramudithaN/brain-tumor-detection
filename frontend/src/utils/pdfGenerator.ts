@@ -8,6 +8,7 @@ export interface PDFReportData {
   model_version: string;
   created_at: string;
   imageUrl: string | null; // Can be a local base64 preview or remote URL
+  explanation_text?: string;
 }
 
 // Convert image URL/blob/base64 to a standard Base64 DataURL for PDF embedding
@@ -224,16 +225,132 @@ export const downloadPDFReport = async (data: PDFReportData): Promise<void> => {
   const splitDescription = doc.splitTextToSize(getClassificationDescription(data.prediction_label), 170);
   doc.text(splitDescription, 20, nextY + 6);
 
-  // --- 5. Medical Disclaimer ---
-  const disclaimerY = 245;
+  // --- 5. Page 1 Footer ---
+  doc.setDrawColor(220, 222, 225);
+  doc.setLineWidth(0.5);
+  doc.line(20, 280, 190, 280);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(156, 159, 164);
+  doc.text('NeuroScanAI Clinical Portal • Analysis Report Export', 20, 286);
+  doc.text('Page 1 of 2', 174, 286);
+
+  // --- Page Break for Page 2 (XAI and Disclaimer) ---
+  doc.addPage();
+  
+  // Page 2 Header (Muted Header Bar)
+  doc.setFillColor(15, 17, 20);
+  doc.rect(0, 0, 210, 22, 'F');
+  
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(242, 241, 237);
+  doc.text('NeuroScan', 20, 14);
+  
+  const nsWidth = doc.getTextWidth('NeuroScan');
+  doc.setTextColor(92, 200, 255);
+  doc.text('AI', 20 + nsWidth + 1, 14);
+  
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(156, 159, 164);
+  doc.text('EXPLAINABLE AI (XAI) & DISCLAIMER', 130, 14);
+  
+  doc.setFillColor(statusColor[0], statusColor[1], statusColor[2]);
+  doc.rect(0, 22, 210, 1, 'F');
+  
+  // --- Page 2 Content: Explainable AI (XAI) Assistance Report ---
+  let yPos = 38;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.setTextColor(10, 11, 13);
+  doc.text('EXPLAINABLE AI (XAI) ASSISTANCE REPORT', 20, yPos);
+  
+  yPos += 8;
+  
+  const text = data.explanation_text || '';
+  const clinicianMarker = 'FOR RADIOLOGISTS & CLINICIANS:';
+  const patientMarker = 'FOR PATIENTS & FAMILIES:';
+  
+  // Clean up emojis and markers in text parsing
+  const cleanLineBreaks = (t: string) => {
+    return t.replace(/•/g, '-').replace(/[*]/g, '');
+  };
+  
+  let clinicianText = '';
+  let patientText = '';
+  
+  if (text.includes(clinicianMarker) && text.includes(patientMarker)) {
+    const parts = text.split(patientMarker);
+    clinicianText = cleanLineBreaks(parts[0].replace(clinicianMarker, '').replace(/={3,}/g, '').replace(/🩺 EXPLAINABLE AI \(XAI\) ASSISTANCE REPORT/g, '').replace(/👨‍⚕️/g, '').trim());
+    patientText = cleanLineBreaks(parts[1].replace(/={3,}/g, '').replace(/👤/g, '').trim());
+  } else {
+    clinicianText = cleanLineBreaks(text.replace(/={3,}/g, '').replace(/🩺 EXPLAINABLE AI \(XAI\) ASSISTANCE REPORT/g, '').replace(/👨‍⚕️/g, '').replace(/👤/g, '').trim());
+  }
+
+  // Draw Clinician Card
+  if (clinicianText) {
+    const splitClinician = doc.splitTextToSize(clinicianText, 158);
+    const clinicianLinesHeight = splitClinician.length * 5;
+    const cardHeight = clinicianLinesHeight + 16;
+    
+    doc.setFillColor(244, 248, 253); // Light blue card
+    doc.rect(20, yPos, 170, cardHeight, 'F');
+    
+    // Border left (blue accent line)
+    doc.setFillColor(59, 130, 246);
+    doc.rect(20, yPos, 2, cardHeight, 'F');
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(30, 58, 138); // Dark blue text
+    doc.text('CLINICAL & RADIOLOGICAL ASSISTANCE', 26, yPos + 6);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(30, 41, 59);
+    doc.text(splitClinician, 26, yPos + 12);
+    
+    yPos += cardHeight + 8;
+  }
+  
+  // Draw Patient Card
+  if (patientText) {
+    const splitPatient = doc.splitTextToSize(patientText, 158);
+    const patientLinesHeight = splitPatient.length * 5;
+    const cardHeight = patientLinesHeight + 16;
+    
+    doc.setFillColor(240, 253, 244); // Light green card
+    doc.rect(20, yPos, 170, cardHeight, 'F');
+    
+    // Border left (green accent line)
+    doc.setFillColor(34, 197, 94);
+    doc.rect(20, yPos, 2, cardHeight, 'F');
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(20, 83, 45); // Dark green text
+    doc.text('PATIENT & FAMILY GUIDANCE', 26, yPos + 6);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(30, 41, 59);
+    doc.text(splitPatient, 26, yPos + 12);
+    
+    yPos += cardHeight + 8;
+  }
+
+  // --- Page 2 Disclaimer ---
+  const disclaimerY = 238;
   
   // Background Box
   doc.setFillColor(254, 242, 242); // Light red box for notice
-  doc.rect(20, disclaimerY, 170, 24, 'F');
+  doc.rect(20, disclaimerY, 170, 26, 'F');
   
   // Border left
   doc.setFillColor(239, 68, 68); // Darker red highlight
-  doc.rect(20, disclaimerY, 2, 24, 'F');
+  doc.rect(20, disclaimerY, 2, 26, 'F');
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
@@ -248,7 +365,7 @@ export const downloadPDFReport = async (data: PDFReportData): Promise<void> => {
   const splitDisclaimer = doc.splitTextToSize(disclaimerText, 160);
   doc.text(splitDisclaimer, 25, disclaimerY + 12);
 
-  // --- 6. Footer ---
+  // --- Page 2 Footer ---
   doc.setDrawColor(220, 222, 225);
   doc.setLineWidth(0.5);
   doc.line(20, 280, 190, 280);
@@ -257,11 +374,8 @@ export const downloadPDFReport = async (data: PDFReportData): Promise<void> => {
   doc.setFontSize(8);
   doc.setTextColor(156, 159, 164);
   
-  // Footer text
   doc.text('NeuroScanAI Clinical Portal • Analysis Report Export', 20, 286);
-  
-  // Page number
-  doc.text('Page 1 of 1', 174, 286);
+  doc.text('Page 2 of 2', 174, 286);
 
   // Save the PDF file
   const sanitizeFilename = (label: string) => {

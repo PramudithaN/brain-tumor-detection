@@ -146,6 +146,7 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
         model_version: result.model_version,
         created_at: result.record?.created_at || new Date().toISOString(),
         imageUrl: imagePreview,
+        explanation_text: result.explanation_text,
       });
       showNotification('PDF report downloaded successfully.', 'success');
     } catch (err: any) {
