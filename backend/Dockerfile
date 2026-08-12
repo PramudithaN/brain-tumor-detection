@@ -4,17 +4,25 @@ FROM python:3.10-slim
 RUN useradd -m -u 1000 user
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies (including OpenCV visual deps)
 RUN apt-get update && apt-get install -y \
     build-essential \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy and install Python dependencies
+# Install PyTorch CPU first (highly cached)
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+# Copy and install other Python dependencies
 COPY --chown=user:user requirements.txt .
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
 # Copy the rest of the backend files
 COPY --chown=user:user . .
+
+# Grant execute permission to start.sh
+RUN chmod +x start.sh
 
 # Set up permissions for Hugging Face environment
 USER user
@@ -24,5 +32,5 @@ ENV HOME=/home/user \
 # Hugging Face Spaces runs on port 7860 by default
 EXPOSE 7860
 
-# Run FastAPI on port 7860
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860"]
+# Run both model server and FastAPI gateway via start.sh
+CMD ["./start.sh"]
