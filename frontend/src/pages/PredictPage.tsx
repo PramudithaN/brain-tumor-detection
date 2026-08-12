@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Container, Grid, Card, CardContent, Typography, Button, Box, CircularProgress, Alert, Paper, Tabs, Tab, Chip } from '@mui/material';
+import { Container, Grid, Card, CardContent, Typography, Button, Box, CircularProgress, Alert, Paper, Tabs, Tab, Chip, Dialog, DialogContent } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
@@ -30,6 +30,7 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PredictionResult | null>(persistedResult);
   const [activeVisualTab, setActiveVisualTab] = useState<'five_panel' | 'combined' | 'seg' | 'bbox'>('five_panel');
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -607,6 +608,11 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
 
                   {/* Display Selected Overlay Image */}
                   <Box 
+                    onClick={() => {
+                      if (result.images[activeVisualTab]) {
+                        setLightboxOpen(true);
+                      }
+                    }}
                     sx={{ 
                       backgroundColor: '#000000', 
                       borderRadius: 2, 
@@ -617,7 +623,13 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
                       minHeight: 380,
                       maxHeight: 500,
                       overflow: 'hidden',
-                      p: 1
+                      p: 1,
+                      cursor: result.images[activeVisualTab] ? 'zoom-in' : 'default',
+                      transition: 'all 0.2s ease-in-out',
+                      '&:hover': result.images[activeVisualTab] ? {
+                        borderColor: '#5CC8FF',
+                        backgroundColor: '#050608'
+                      } : {}
                     }}
                   >
                     {result.images[activeVisualTab] ? (
@@ -765,6 +777,58 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
             </Grid>
           </Grid>
         </Box>
+      )}
+
+      {/* Lightbox Dialog for Image Enlarge */}
+      {result && result.images[activeVisualTab] && (
+        <Dialog
+          open={lightboxOpen}
+          onClose={() => setLightboxOpen(false)}
+          maxWidth="lg"
+          fullWidth
+          PaperProps={{
+            sx: {
+              backgroundColor: '#15171A',
+              backgroundImage: 'none',
+              border: '1px solid #2A2D31',
+              borderRadius: 3,
+              overflow: 'hidden'
+            }
+          }}
+        >
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 3, py: 2, borderBottom: '1px solid #2A2D31' }}>
+            <Typography variant="h3" sx={{ fontSize: '1.2rem', fontWeight: 700, m: 0 }}>
+              {activeVisualTab === 'five_panel' && '5-Panel Diagnostic Overview'}
+              {activeVisualTab === 'combined' && 'Combined YOLO + Swin-UNet Overlay'}
+              {activeVisualTab === 'seg' && 'Swin-UNet Segmentation Boundary'}
+              {activeVisualTab === 'bbox' && 'YOLOv8 Bounding Box'}
+            </Typography>
+            <Button 
+              size="small"
+              onClick={() => setLightboxOpen(false)}
+              sx={{ 
+                color: '#9C9FA4', 
+                minWidth: 'auto',
+                '&:hover': { color: '#FF5A46', backgroundColor: 'transparent' } 
+              }}
+            >
+              Close [✕]
+            </Button>
+          </Box>
+          <DialogContent sx={{ p: 0, backgroundColor: '#000000', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh', maxHeight: '80vh', overflow: 'hidden' }}>
+            <img 
+              src={result.images[activeVisualTab]!} 
+              alt={`${activeVisualTab} expanded view`}
+              style={{ 
+                maxWidth: '100%', 
+                maxHeight: '80vh', 
+                objectFit: 'contain',
+                cursor: 'zoom-out'
+              }}
+              onClick={() => setLightboxOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Frequently Asked Questions / Explanation */}
