@@ -204,8 +204,13 @@ export const generatePDFDoc = async (data: PDFReportData): Promise<jsPDF> => {
   const clinicianMarker = 'FOR RADIOLOGISTS & CLINICIANS:';
   const patientMarker = 'FOR PATIENTS & FAMILIES:';
   
-  const cleanLineBreaks = (t: string) => {
-    return t.replace(/•/g, '-').replace(/[*]/g, '');
+  const cleanTextForPDF = (t: string) => {
+    return t
+      .replace(/•/g, '-')
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/[^\x20-\x7E\n\r\t]/g, '') // Strip all non-ASCII characters (including emojis and zero-width joiners)
+      .trim();
   };
   
   let clinicianText = '';
@@ -213,10 +218,10 @@ export const generatePDFDoc = async (data: PDFReportData): Promise<jsPDF> => {
   
   if (text.includes(clinicianMarker) && text.includes(patientMarker)) {
     const parts = text.split(patientMarker);
-    clinicianText = cleanLineBreaks(parts[0].replace(clinicianMarker, '').replace(/={3,}/g, '').replace(/🩺 EXPLAINABLE AI \(XAI\) ASSISTANCE REPORT/g, '').replace(/👨‍⚕️/g, '').trim());
-    patientText = cleanLineBreaks(parts[1].replace(/={3,}/g, '').replace(/👤/g, '').trim());
+    clinicianText = cleanTextForPDF(parts[0].replace(clinicianMarker, '').replace(/={3,}/g, ''));
+    patientText = cleanTextForPDF(parts[1].replace(/={3,}/g, ''));
   } else {
-    clinicianText = cleanLineBreaks(text.replace(/={3,}/g, '').replace(/🩺 EXPLAINABLE AI \(XAI\) ASSISTANCE REPORT/g, '').replace(/👨‍⚕️/g, '').replace(/👤/g, '').trim());
+    clinicianText = cleanTextForPDF(text.replace(/={3,}/g, ''));
   }
 
   // Draw Clinician Card (Dynamic Height)
