@@ -19,7 +19,7 @@
 
 ## 📖 About This Project
 
-This project implements a web-based clinical portal that enables users to upload brain MRI scans and get ML-generated tumor predictions. It provides two key usage modes: **Guest mode** for anonymous, instant predictions without data retention, and **Logged-in mode** which securely saves scans and classification records to the user's history using Supabase. The modular monolith design separates auth, validation, inference, and database CRUD on the backend, making it straightforward to scale and adapt.
+This project implements a web-based clinical portal that enables users to upload brain MRI scans and get ML generated tumor predictions. It provides two key usage modes: **Guest mode** for anonymous, instant predictions without data retention, and **Logged-in mode** which securely saves scans and classification records to the user's history using Supabase. The modular monolith design separates auth, validation, inference, and database CRUD on the backend, making it straightforward to scale and adapt.
 
 ---
 
