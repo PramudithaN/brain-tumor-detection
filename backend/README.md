@@ -9,7 +9,9 @@ pinned: false
 
 # Brain Tumor Detection Backend
 
-This is the FastAPI backend for the Brain Tumor Detection clinical portal, configured for deployment on Hugging Face Spaces (Docker).
+FastAPI backend application service for the Brain Tumor Detection clinical platform, configured for containerized deployment (Docker) and Hugging Face Spaces.
 
-## 🚀 Live Space
-👉 https://huggingface.co/spaces/PramudithaN/brain-tumor-backend
+## Deployment
+
+- Live Space: https://huggingface.co/spaces/PramudithaN/brain-tumor-backend
+- API Documentation: `http://localhost:8000/docs` (OpenAPI Swagger UI)
