@@ -34,3 +34,8 @@ Thumbs.db
 *.pth
 *.pt
 *.zip
+
+# AI Agent rule & template files (per-repo local generated)
+AGENTS.md
+GEMINI.md
+templates/
