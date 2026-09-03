@@ -51,6 +51,7 @@ export const generatePDFDoc = async (data: PDFReportData): Promise<jsPDF> => {
       case 'Glioma': return [255, 90, 70]; // #FF5A46 (Red)
       case 'Meningioma': return [255, 178, 56]; // #FFB238 (Amber)
       case 'Pituitary': return [92, 200, 255]; // #5CC8FF (Cyan)
+      case 'Unrecognized Tumor': return [245, 158, 11]; // #F59E0B (Amber/Warning)
       case 'No Tumor':
       case 'No tumor detected':
         return [74, 222, 156]; // #4ADE9C (Green)

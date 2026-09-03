@@ -6,6 +6,8 @@ import torch
 import torch.nn as nn
 import numpy as np
 import h5py
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from PIL import Image
 from torchvision import transforms, models
@@ -131,6 +133,22 @@ CLINICAL_EXPLANATIONS = {
         "  • What This Means: The AI analyzed your brain MRI scan and confirmed healthy brain tissue with NO tumor detected.\n"
         "  • Heatmap Explanation: The scan shows balanced, uniform brain features with no abnormal spots.\n"
         "  • Suggested Next Steps: Share these reassuring results with your primary care physician during your checkup."
+    ),
+    'UNRECOGNIZED_TUMOR': (
+        "=================================================================\n"
+        " 🩺 EXPLAINABLE AI (XAI) ASSISTANCE REPORT\n"
+        "=================================================================\n"
+        "⚠️ DIAGNOSTIC STATUS: UNRECOGNIZED / ATYPICAL BRAIN LESION DETECTED\n"
+        "-----------------------------------------------------------------\n"
+        "👨‍⚕️ FOR RADIOLOGISTS & CLINICIANS:\n"
+        "  • Lesion Segmentation: YOLOv8 and Swin-UNet isolated an abnormal focal brain lesion/mass.\n"
+        "  • Multi-Specialist Classifier: Deep feature signatures do NOT reliably match the 3 trained tumor classes (Glioma, Meningioma, Pituitary).\n"
+        "  • Differential Considerations: Atypical or non-standard neoplasm (e.g., metastatic carcinoma, schwannoma, ependymoma, central neurocytoma, craniopharyngioma) or non-neoplastic focal lesion.\n"
+        "  • Clinical Recommendation: Order urgent multi-parametric contrast MRI (axial/sagittal/coronal T1+C, T2/FLAIR, DWI/ADC, MR Perfusion) and neurosurgical consultation for biopsy/histopathological verification.\n\n"
+        "👤 FOR PATIENTS & FAMILIES:\n"
+        "  • What This Means: The AI system detected an abnormal growth/lesion in your brain scan, but it cannot identify the exact subtype because it does NOT match the 3 standard tumor categories it was trained to recognize.\n"
+        "  • Heatmap Explanation: The bounding box, red outline, and heatmap highlight the exact location where abnormal tissue was detected.\n"
+        "  • Suggested Next Steps: ⚠️ PLEASE MEET AND CONSULT YOUR DOCTOR OR SPECIALIST (Neurologist / Neurosurgeon) AS SOON AS POSSIBLE. A qualified physician must review this scan in person to provide an accurate diagnosis and personalized medical guidance."
     )
 }
 
@@ -234,31 +252,12 @@ def load_local_models():
                     cfg_p = os.path.join(root, f)
                     break
 
-    # 2. Locate Swin-UNet & YOLO weights, falling back to Hugging Face Model Hub if missing
+    # 2. Locate Swin-UNet & YOLO weights
     swin_p = os.path.join(BASE_DIR, 'output_finetune', 'best_model.pth')
     if not os.path.exists(swin_p):
         swin_p = os.path.join(BASE_DIR, 'best_model.pth')
         
     yolo_p = os.path.join(BASE_DIR, 'yolo_best.pt')
-
-    if not os.path.exists(swin_p) or not os.path.exists(yolo_p) or not all(os.path.exists(os.path.join(BASE_DIR, f"densenet121_{cls.lower()}.pth")) for cls in CLASSES):
-        print("[*] One or more weight files are missing locally. Attempting to download from Hugging Face Model Hub...")
-        try:
-            from huggingface_hub import hf_hub_download
-            repo_id = "PramudithaN/brain-tumor-models"
-            hf_token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_TOKEN")
-            
-            if not os.path.exists(swin_p):
-                print(f"[*] Downloading best_model.pth from HF Hub repo {repo_id}...")
-                swin_p = hf_hub_download(repo_id=repo_id, filename="best_model.pth", token=hf_token)
-                
-            if not os.path.exists(yolo_p):
-                print(f"[*] Downloading yolo_best.pt from HF Hub repo {repo_id}...")
-                yolo_p = hf_hub_download(repo_id=repo_id, filename="yolo_best.pt", token=hf_token)
-        except Exception as e:
-            print(f"[!] Error downloading weights from Hugging Face: {e}")
-            if not os.path.exists(swin_p) or not os.path.exists(yolo_p):
-                raise FileNotFoundError(f"Missing weight files and failed to download from HF: Swin-UNet ({swin_p}) or YOLO ({yolo_p})")
 
     print(f"[*] Config YAML  : {cfg_p}")
     print(f"[*] Swin-UNet Pt : {swin_p}")
@@ -274,15 +273,6 @@ def load_local_models():
         if not os.path.exists(ckpt_p):
             ckpt_p = os.path.join(EXTRACTED_DIR, ckpt_name)
             
-        if not os.path.exists(ckpt_p):
-            try:
-                from huggingface_hub import hf_hub_download
-                print(f"[*] Downloading {ckpt_name} from HF Hub...")
-                hf_token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_TOKEN")
-                ckpt_p = hf_hub_download(repo_id="PramudithaN/brain-tumor-models", filename=ckpt_name, token=hf_token)
-            except Exception as e:
-                print(f"[!] Warning: Failed to download specialist weights {ckpt_name}: {e}")
-
         m = build_specialist_model().to(device)
         if os.path.exists(ckpt_p):
             m.load_state_dict(torch.load(ckpt_p, map_location=device, weights_only=False))
@@ -297,14 +287,12 @@ def load_local_models():
 # -----------------------------------------------------------------------------
 # 6. Main Prediction Logic & File Saver
 # -----------------------------------------------------------------------------
-def run_diagnosis(input_path, output_dir=None, pipeline=None, specialists=None):
+def run_diagnosis(input_path, output_dir=None):
     if output_dir is None:
         output_dir = BASE_DIR
     os.makedirs(output_dir, exist_ok=True)
 
-    if pipeline is None or specialists is None:
-        pipeline, specialists = load_local_models()
-
+    pipeline, specialists = load_local_models()
     img_rgb = load_input_file(input_path)
     h_img, w_img, _ = img_rgb.shape
 
@@ -356,8 +344,31 @@ def run_diagnosis(input_path, output_dir=None, pipeline=None, specialists=None):
         scores['PITUITARY'] = torch.softmax(specialists['PITUITARY'](input_tensor), dim=1)[0, 1].item()
         scores['NOTUMOR'] = torch.softmax(specialists['NOTUMOR'](input_tensor), dim=1)[0, 0].item()
 
-    pred_class = max(scores, key=scores.get)
-    conf_percent = scores[pred_class] * 100.0
+    pred_class = None
+    tumor_classes = ['GLIOMA', 'MENINGIOMA', 'PITUITARY']
+    best_tumor_class = max(tumor_classes, key=lambda c: scores[c])
+    best_tumor_score = scores[best_tumor_class]
+    notumor_score = scores['NOTUMOR']
+
+    # Clinical Open-Set Recognition Calibration:
+    # 1. Normal Scan (NOTUMOR): NOTUMOR specialist is dominant and confident (>= 50%)
+    # 2. Confirmed Trained Tumor: Requires >= 65% confidence in the best matching specialist
+    # 3. Unrecognized Tumor: Significant lesion detected, but best matching specialist confidence < 65% and notumor < 50%
+    TUMOR_CONF_THRESHOLD = 0.65      # 65% confidence threshold
+
+    if (notumor_score > best_tumor_score and notumor_score >= 0.50) or (best_tumor_score < 0.20 and notumor_score >= 0.40):
+        pred_class = 'NOTUMOR'
+        conf_percent = notumor_score * 100.0
+        gradcam_model_key = 'NOTUMOR'
+    elif best_tumor_score >= TUMOR_CONF_THRESHOLD:
+        pred_class = best_tumor_class
+        conf_percent = best_tumor_score * 100.0
+        gradcam_model_key = best_tumor_class
+    else:
+        # Abnormal tissue / lesion detected, but does not match trained tumor classes with >= 65% certainty
+        pred_class = 'UNRECOGNIZED_TUMOR'
+        conf_percent = best_tumor_score * 100.0
+        gradcam_model_key = best_tumor_class
 
     # If NO TUMOR is predicted, revert visualization to clean raw image (no bounding box or red mask overlay)
     if pred_class == 'NOTUMOR':
@@ -373,11 +384,16 @@ def run_diagnosis(input_path, output_dir=None, pipeline=None, specialists=None):
         cv2.imwrite(combined_path, cv2.cvtColor(combined_img, cv2.COLOR_RGB2BGR))
 
     # Stage 4: Explainable AI (Grad-CAM) Heatmap
-    target_idx = 1 if pred_class == 'PITUITARY' else 0
-    cam_map = generate_gradcam(specialists[pred_class], input_tensor, target_idx)
-    heatmap_colored = cv2.applyColorMap(np.uint8(255 * cam_map), cv2.COLORMAP_JET)
-    heatmap_rgb = cv2.cvtColor(heatmap_colored, cv2.COLOR_BGR2RGB)
-    xai_overlay = cv2.addWeighted(roi_patch_rgb, 0.6, heatmap_rgb, 0.4, 0)
+    if pred_class == 'NOTUMOR':
+        # For No-Tumor scans, there is NO tumor to explain: show clean scan without heatmap
+        flair_ch = img_rgb[:, :, 0] if img_rgb.ndim == 3 else img_rgb
+        xai_overlay = np.stack([flair_ch, flair_ch, flair_ch], axis=-1).astype(np.uint8)
+    else:
+        target_idx = 1 if gradcam_model_key == 'PITUITARY' else 0
+        cam_map = generate_gradcam(specialists[gradcam_model_key], input_tensor, target_idx)
+        heatmap_colored = cv2.applyColorMap(np.uint8(255 * cam_map), cv2.COLORMAP_JET)
+        heatmap_rgb = cv2.cvtColor(heatmap_colored, cv2.COLOR_BGR2RGB)
+        xai_overlay = cv2.addWeighted(roi_patch_rgb, 0.6, heatmap_rgb, 0.4, 0)
 
     # Render 5-Panel Display
     fig, axes = plt.subplots(1, 5, figsize=(25, 5))
@@ -387,27 +403,35 @@ def run_diagnosis(input_path, output_dir=None, pipeline=None, specialists=None):
         axes[1].imshow(bbox_img); axes[1].set_title('No Bounding Box (Normal)', fontweight='bold', color='gray'); axes[1].axis('off')
         axes[2].imshow(seg_img); axes[2].set_title('No Segmentation (Normal)', fontweight='bold', color='gray'); axes[2].axis('off')
         axes[3].imshow(combined_img); axes[3].set_title('Clean MRI Scan', fontweight='bold', color='gray'); axes[3].axis('off')
+        axes[4].imshow(xai_overlay); axes[4].set_title('No Tumor (Grad-CAM N/A)', fontweight='bold', color='gray'); axes[4].axis('off')
+        plt.suptitle(f'NEURO AI DIAGNOSIS: NORMAL / NO TUMOR ({conf_percent:.1f}% Confidence)', fontsize=15, fontweight='bold', y=1.04)
+    elif pred_class == 'UNRECOGNIZED_TUMOR':
+        axes[1].imshow(bbox_img); axes[1].set_title('YOLO Lesion Box', fontweight='bold', color='darkorange'); axes[1].axis('off')
+        axes[2].imshow(seg_img); axes[2].set_title('Swin-UNet Segmentation', fontweight='bold', color='red'); axes[2].axis('off')
+        axes[3].imshow(combined_img); axes[3].set_title('Combined Lesion View', fontweight='bold', color='purple'); axes[3].axis('off')
+        axes[4].imshow(xai_overlay); axes[4].set_title('Explainable AI (Grad-CAM)', fontweight='bold', color='darkred'); axes[4].axis('off')
+        plt.suptitle('⚠️ NEURO AI DIAGNOSIS: UNRECOGNIZED TUMOR TYPE — CONSULT SPECIALIST / DOCTOR', fontsize=14, fontweight='bold', color='darkred', y=1.04)
     else:
         axes[1].imshow(bbox_img); axes[1].set_title('YOLO Bounding Box', fontweight='bold', color='green'); axes[1].axis('off')
         axes[2].imshow(seg_img); axes[2].set_title('Swin-UNet Red Line', fontweight='bold', color='red'); axes[2].axis('off')
         axes[3].imshow(combined_img); axes[3].set_title('Combined Display', fontweight='bold', color='purple'); axes[3].axis('off')
+        axes[4].imshow(xai_overlay); axes[4].set_title('Explainable AI (Grad-CAM)', fontweight='bold', color='darkred'); axes[4].axis('off')
+        plt.suptitle(f'NEURO AI DIAGNOSIS: {pred_class} ({conf_percent:.1f}% Confidence)', fontsize=15, fontweight='bold', y=1.04)
 
-    axes[4].imshow(xai_overlay); axes[4].set_title('Explainable AI (Grad-CAM)', fontweight='bold', color='darkred'); axes[4].axis('off')
-    plt.suptitle(f'NEURO AI DIAGNOSIS: {pred_class} ({conf_percent:.1f}% Confidence)', fontsize=15, fontweight='bold', y=1.04)
     plt.tight_layout()
     fig_path = os.path.join(output_dir, 'complete_diagnosis_5panel_output.png')
     plt.savefig(fig_path, bbox_inches='tight', dpi=300)
+    plt.close(fig)
     print(f" [+] SAVED: complete_diagnosis_5panel_output.png -> {fig_path}")
-    try:
-        plt.show(block=False)
-        plt.pause(1)
-        plt.close(fig)
-    except Exception:
-        plt.close(fig)
 
     print("\n" + "="*65)
-    print(f"  PREDICTED TUMOR TYPE : {pred_class}")
-    print(f"  CONFIDENCE SCORE     : {conf_percent:.2f} %")
+    if pred_class == 'UNRECOGNIZED_TUMOR':
+        print("  PREDICTED STATUS     : ⚠️ UNRECOGNIZED TUMOR TYPE (LESION DETECTED)")
+        print(f"  MAX TRAINED MATCH    : {best_tumor_class} ({conf_percent:.2f}% - Below 65% Confidence Threshold)")
+        print("  RECOMMENDATION       : CONSULT SPECIALIST / DOCTOR FOR CLINICAL EVALUATION")
+    else:
+        print(f"  PREDICTED TUMOR TYPE : {pred_class}")
+        print(f"  CONFIDENCE SCORE     : {conf_percent:.2f} %")
     print("-" * 65)
     print(CLINICAL_EXPLANATIONS.get(pred_class, ''))
     print("="*65)

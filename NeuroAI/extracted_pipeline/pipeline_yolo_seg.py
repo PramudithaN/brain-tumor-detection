@@ -179,51 +179,50 @@ class YOLOSegPipeline:
             tumor_prob = torch.sum(probs[1:, :, :], dim=0).cpu().numpy()
             argmax_pred = torch.argmax(logits, dim=1).squeeze(0).cpu().numpy().astype(np.uint8)
             
-        argmax_tumor_pixels = np.sum(argmax_pred > 0)
-        
-        if argmax_tumor_pixels > 0:
-            raw_mask_224 = (argmax_pred > 0).astype(np.float32)
-        else:
-            raw_mask_224 = (tumor_prob >= 0.10).astype(np.float32)
-            
+        # 1. Swin-UNet soft probability map
+        raw_mask_224 = (tumor_prob >= 0.10).astype(np.float32)
         mask_smooth = cv2.resize(raw_mask_224, (w, h), interpolation=cv2.INTER_CUBIC)
-        mask_smooth = cv2.GaussianBlur(mask_smooth, (5, 5), 0)
-        full_mask_original = (mask_smooth > 0.4).astype(np.uint8)
+        swin_mask_full = (mask_smooth > 0.20).astype(np.uint8)
         
-        if enforce_bbox:
-            bbox_mask = np.zeros_like(full_mask_original, dtype=np.uint8)
-            bbox_mask[y1:y2, x1:x2] = full_mask_original[y1:y2, x1:x2]
-            
-            if np.sum(bbox_mask > 0) > 0:
-                final_mask = bbox_mask
-            elif np.sum(full_mask_original > 0) > 0:
-                final_mask = full_mask_original
+        if has_yolo_box:
+            roi = flair_channel[y1:y2, x1:x2]
+            if roi.size > 0:
+                blurred_roi = cv2.GaussianBlur(roi, (7, 7), 0)
+                _, thresh = cv2.threshold(blurred_roi, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+                k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+                clean_thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, k)
+                final_mask = np.zeros((h, w), dtype=np.uint8)
+                final_mask[y1:y2, x1:x2] = (clean_thresh > 0).astype(np.uint8)
             else:
-                final_mask = np.zeros_like(full_mask_original, dtype=np.uint8)
-                center_x = (x1 + x2) // 2
-                center_y = (y1 + y2) // 2
-                axes_x = max(8, (x2 - x1) // 3)
-                axes_y = max(8, (y2 - y1) // 3)
-                cv2.ellipse(final_mask, (center_x, center_y), (axes_x, axes_y), 0, 0, 360, 1, -1)
+                final_mask = swin_mask_full
         else:
-            final_mask = full_mask_original
+            final_mask = swin_mask_full
+            contours_init, _ = cv2.findContours(final_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if len(contours_init) > 0:
+                largest_cnt = max(contours_init, key=cv2.contourArea)
+                bx, by, bw, bh = cv2.boundingRect(largest_cnt)
+                x1, y1, x2, y2 = bx, by, bx + bw, by + bh
+                final_mask = np.zeros((h, w), dtype=np.uint8)
+                cv2.drawContours(final_mask, [largest_cnt], -1, 1, -1)
+            else:
+                x1, y1, x2, y2 = w // 3, h // 3, 2 * w // 3, 2 * h // 3
 
-        total_red_pixels = np.sum(final_mask > 0)
+        total_red_pixels = int(np.sum(final_mask > 0))
         print(f"[+] Total Segmented Tumor Pixels (Red): {total_red_pixels}")
         
+        # Render Bounding Box Image (tightly aligned)
+        bbox_vis_image = grayscale_base.copy()
+        cv2.rectangle(bbox_vis_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        
+        # Render Segmentation Image
         seg_vis_image = grayscale_base.copy()
-        contours, _ = cv2.findContours(final_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_KCOS)
+        contours, _ = cv2.findContours(final_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         if len(contours) > 0:
             red_overlay = grayscale_base.copy()
             cv2.drawContours(red_overlay, contours, -1, (255, 0, 0), thickness=cv2.FILLED)
             seg_vis_image = cv2.addWeighted(red_overlay, alpha, grayscale_base, 1.0 - alpha, 0)
-            cv2.drawContours(seg_vis_image, contours, -1, (255, 0, 0), thickness=1, lineType=cv2.LINE_AA)
-            
-            if not has_yolo_box:
-                x_b, y_b, w_b, h_b = cv2.boundingRect(contours[0])
-                x1, y1, x2, y2 = x_b, y_b, x_b + w_b, y_b + h_b
-                cv2.rectangle(bbox_vis_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.drawContours(seg_vis_image, contours, -1, (255, 0, 0), thickness=2, lineType=cv2.LINE_AA)
             
         combined_image = seg_vis_image.copy()
         cv2.rectangle(combined_image, (x1, y1), (x2, y2), (0, 255, 0), 2)

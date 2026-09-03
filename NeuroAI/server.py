@@ -32,25 +32,32 @@ def serve_index():
     return send_from_directory('static', 'index.html')
 
 def find_sample_image(class_name, sample_filename):
-    # Try Downloads dataset_c first
-    downloads_path = os.path.join(os.path.expanduser('~'), 'Downloads', 'dataset_c', 'test', class_name.lower(), sample_filename)
-    if os.path.exists(downloads_path):
-        return downloads_path
-    
-    # Try workspace directory search
-    for root, dirs, files in os.walk(BASE_DIR):
-        for f in files:
-            if f.lower().endswith(('.jpg', '.png', '.jpeg')):
-                return os.path.join(root, f)
+    # 1. Search in workspace dataset_c/dataset_c/test/<class_name>
+    candidates = [
+        os.path.join(BASE_DIR, 'dataset_c', 'dataset_c', 'test', class_name.lower(), sample_filename),
+        os.path.join(BASE_DIR, 'dataset_c', 'test', class_name.lower(), sample_filename),
+        os.path.join(os.path.expanduser('~'), 'Downloads', 'dataset_c', 'test', class_name.lower(), sample_filename)
+    ]
+    for p in candidates:
+        if os.path.exists(p):
+            return p
+
+    # Fallback to first image in that specific class directory
+    for base in [os.path.join(BASE_DIR, 'dataset_c', 'dataset_c', 'test', class_name.lower()),
+                 os.path.join(BASE_DIR, 'dataset_c', 'test', class_name.lower())]:
+        if os.path.exists(base):
+            flist = [f for f in os.listdir(base) if f.lower().endswith(('.jpg', '.png', '.jpeg'))]
+            if len(flist) > 0:
+                return os.path.join(base, flist[0])
     return None
 
 @app.route('/api/samples', methods=['GET'])
 def get_samples():
     samples = [
-        {"id": "glioma", "name": "Glioma MRI Sample", "class": "GLIOMA", "path": find_sample_image("glioma", "Te-glTr_0000.jpg")},
-        {"id": "meningioma", "name": "Meningioma MRI Sample", "class": "MENINGIOMA", "path": find_sample_image("meningioma", "Te-meTr_0000.jpg")},
-        {"id": "pituitary", "name": "Pituitary MRI Sample", "class": "PITUITARY", "path": find_sample_image("pituitary", "Te-piTr_0000.jpg")},
-        {"id": "notumor", "name": "No Tumor MRI Sample", "class": "NOTUMOR", "path": find_sample_image("notumor", "Te-noTr_0000.jpg")}
+        {"id": "glioma", "name": "Glioma MRI Sample (Te-glTr_0000)", "class": "GLIOMA", "path": find_sample_image("glioma", "Te-glTr_0000.jpg")},
+        {"id": "meningioma", "name": "Meningioma MRI Sample (Te-me_0012)", "class": "MENINGIOMA", "path": find_sample_image("meningioma", "Te-me_0012.jpg")},
+        {"id": "pituitary", "name": "Pituitary MRI Sample (Te-pi_0014)", "class": "PITUITARY", "path": find_sample_image("pituitary", "Te-pi_0014.jpg")},
+        {"id": "notumor", "name": "Healthy Brain MRI Sample (Te-noTr_0000)", "class": "NOTUMOR", "path": find_sample_image("notumor", "Te-noTr_0000.jpg")}
     ]
     return jsonify({"status": "success", "samples": samples})
 
@@ -63,12 +70,12 @@ def predict():
         if sample_id:
             sample_mapping = {
                 "glioma": find_sample_image("glioma", "Te-glTr_0000.jpg"),
-                "meningioma": find_sample_image("meningioma", "Te-meTr_0000.jpg"),
-                "pituitary": find_sample_image("pituitary", "Te-piTr_0000.jpg"),
+                "meningioma": find_sample_image("meningioma", "Te-me_0012.jpg"),
+                "pituitary": find_sample_image("pituitary", "Te-pi_0014.jpg"),
                 "notumor": find_sample_image("notumor", "Te-noTr_0000.jpg")
             }
             temp_file_path = sample_mapping.get(sample_id)
-            filename = os.path.basename(temp_file_path) if temp_file_path else "sample.jpg"
+            filename = os.path.basename(temp_file_path) if temp_file_path else f"{sample_id}.jpg"
         else:
             if 'file' not in request.files:
                 return jsonify({"status": "error", "message": "No file uploaded"}), 400

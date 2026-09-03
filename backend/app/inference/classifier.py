@@ -10,6 +10,7 @@ class BrainTumorClassifier:
         # Read the ML model API URL from environment variables, defaulting to local Flask server
         self.model_api_url = os.getenv("MODEL_API_URL", "http://localhost:8080/api/predict")
         self.model_version = "NeuroAI-RemoteAPI-v2.0"
+        self.is_mock = False
         logger.info(f"Initialized BrainTumorClassifier calling API at: {self.model_api_url}")
 
     def predict(self, image_bytes: bytes, filename: str = "mri_scan.png") -> Dict[str, Any]:
@@ -44,9 +45,10 @@ class BrainTumorClassifier:
                 'GLIOMA': 'Glioma',
                 'MENINGIOMA': 'Meningioma',
                 'PITUITARY': 'Pituitary',
-                'NOTUMOR': 'No Tumor'
+                'NOTUMOR': 'No Tumor',
+                'UNRECOGNIZED_TUMOR': 'Unrecognized Tumor'
             }
-            prediction_label = class_mapping.get(pred_class_raw, 'No Tumor')
+            prediction_label = class_mapping.get(pred_class_raw, 'Unrecognized Tumor' if pred_class_raw == 'UNRECOGNIZED_TUMOR' else 'No Tumor')
             
             confidence = result.get("conf_percent", 0.0) / 100.0
             segmented_pixels = int(result.get("segmented_pixels", 0))
