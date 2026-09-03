@@ -128,6 +128,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ user }) => {
       case 'Glioma': return '#FF5A46';       // --heat-red
       case 'Meningioma': return '#FFB238';   // --heat-amber
       case 'Pituitary': return '#5CC8FF';    // --signal-cyan
+      case 'Unrecognized Tumor': return '#F59E0B'; // --warning-amber
       case 'No Tumor':
       case 'No tumor detected':
         return '#4ADE9C';                    // --clear-mint

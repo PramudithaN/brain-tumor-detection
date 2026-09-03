@@ -213,6 +213,7 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
       case 'Glioma': return '#FF5A46';       // --heat-red
       case 'Meningioma': return '#FFB238';   // --heat-amber
       case 'Pituitary': return '#5CC8FF';    // --signal-cyan
+      case 'Unrecognized Tumor': return '#F59E0B'; // --warning-amber
       case 'No Tumor':
       case 'No tumor detected':
         return '#4ADE9C';                    // --clear-mint
@@ -482,7 +483,11 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
                   </Box>
                   <Box>
                     <Typography variant="h4" sx={{ fontWeight: 700, my: 0.5 }}>
-                      {result.prediction_label === 'No Tumor' ? 'Benign Scan' : `${result.prediction_label} Tumor`}
+                      {result.prediction_label === 'No Tumor' 
+                        ? 'Benign Scan' 
+                        : result.prediction_label === 'Unrecognized Tumor' 
+                          ? 'Unrecognized / Atypical Lesion' 
+                          : `${result.prediction_label} Tumor`}
                     </Typography>
                     <Typography variant="body2" sx={{ color: '#6B6E73', fontFamily: '"IBM Plex Mono", monospace', mt: 1 }}>
                       Inference Engine: {result.model_version}
