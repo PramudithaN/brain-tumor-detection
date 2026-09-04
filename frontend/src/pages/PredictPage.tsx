@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Container, Grid, Card, CardContent, Typography, Button, Box, CircularProgress, Alert, Paper, Tabs, Tab, Chip, Dialog, DialogContent } from '@mui/material';
+import { Container, Grid, Card, CardContent, Typography, Button, Box, CircularProgress, LinearProgress, Alert, Paper, Tabs, Tab, Chip, Dialog, DialogContent } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
@@ -30,10 +30,13 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PredictionResult | null>(persistedResult);
   const [activeVisualTab, setActiveVisualTab] = useState<'five_panel' | 'combined' | 'seg' | 'bbox'>('five_panel');
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [analysisStage, setAnalysisStage] = useState('');
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [reportUrl, setReportUrl] = useState<string | null>(null);
   const [reportViewOpen, setReportViewOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const progressTimerRef = useRef<any>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -47,6 +50,8 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
   const processFile = (selectedFile: File) => {
     setError(null);
     setResult(null);
+    setAnalysisProgress(0);
+    setAnalysisStage('');
     persistedResult = null; // Clear old result cache on new file select
 
     // Client-side validation
@@ -98,10 +103,16 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
   };
 
   const handleClear = () => {
+    if (progressTimerRef.current) {
+      clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
     setFile(null);
     setImagePreview(null);
     setError(null);
     setResult(null);
+    setAnalysisProgress(0);
+    setAnalysisStage('');
     persistedFile = null;
     persistedImagePreview = null;
     persistedResult = null;
@@ -122,18 +133,57 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
     if (!file) return;
     setLoading(true);
     setError(null);
+    setAnalysisProgress(8);
+    setAnalysisStage('Preprocessing MRI scan and normalizing slices...');
+
+    if (progressTimerRef.current) {
+      clearInterval(progressTimerRef.current);
+    }
+
+    // Dynamic multi-stage progress tracking
+    let currentPct = 8;
+    progressTimerRef.current = setInterval(() => {
+      currentPct += Math.floor(Math.random() * 6) + 3;
+      if (currentPct > 92) {
+        currentPct = 92;
+      }
+      setAnalysisProgress(currentPct);
+
+      if (currentPct < 25) {
+        setAnalysisStage('Preprocessing MRI scan and normalizing slices...');
+      } else if (currentPct < 55) {
+        setAnalysisStage('Extracting Swin-UNet deep transformer features...');
+      } else if (currentPct < 80) {
+        setAnalysisStage('Localizing lesions & calculating YOLOv8 boundaries...');
+      } else {
+        setAnalysisStage('Synthesizing Explainable AI (XAI) insights...');
+      }
+    }, 240);
     
     try {
       const res = await apiService.predict(file);
-      setResult(res);
-      persistedResult = res; // Save to cache
-      setActiveVisualTab('five_panel');
-      showNotification('Analysis completed successfully!', 'success');
+      if (progressTimerRef.current) {
+        clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+      setAnalysisProgress(100);
+      setAnalysisStage('Analysis complete!');
+      
+      setTimeout(() => {
+        setResult(res);
+        persistedResult = res; // Save to cache
+        setActiveVisualTab('five_panel');
+        setLoading(false);
+        showNotification('Analysis completed successfully!', 'success');
+      }, 350);
     } catch (err: any) {
+      if (progressTimerRef.current) {
+        clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+      setLoading(false);
       setError(err.message || 'An error occurred during image processing.');
       showNotification(err.message || 'An error occurred during image processing.', 'error');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -373,6 +423,65 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
                     </Box>
                   </Paper>
 
+                  {/* Interactive Multi-stage Progress Bar during Analysis */}
+                  {loading && (
+                    <Box
+                      sx={{
+                        mb: 3,
+                        p: 2.5,
+                        borderRadius: 2.5,
+                        backgroundColor: '#1C1F23',
+                        border: '1px solid #2A2D31',
+                        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
+                          <CircularProgress size={16} thickness={5} sx={{ color: '#FFB238' }} />
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontFamily: '"Space Grotesk", sans-serif',
+                              fontWeight: 600,
+                              color: '#F2F1ED',
+                              fontSize: '0.875rem',
+                              letterSpacing: '0.01em',
+                            }}
+                          >
+                            {analysisStage}
+                          </Typography>
+                        </Box>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontFamily: '"IBM Plex Mono", monospace',
+                            fontWeight: 700,
+                            color: '#FFB238',
+                            fontSize: '0.9rem',
+                          }}
+                        >
+                          {analysisProgress}%
+                        </Typography>
+                      </Box>
+
+                      <LinearProgress
+                        variant="determinate"
+                        value={analysisProgress}
+                        sx={{
+                          height: 8,
+                          borderRadius: 4,
+                          backgroundColor: '#2A2D31',
+                          '& .MuiLinearProgress-bar': {
+                            borderRadius: 4,
+                            backgroundColor: '#FFB238',
+                            boxShadow: '0 0 8px rgba(255, 178, 56, 0.4)',
+                            transition: 'transform 0.25s ease-in-out',
+                          },
+                        }}
+                      />
+                    </Box>
+                  )}
+
                   {/* Actions */}
                   <Box sx={{ display: 'flex', gap: 2 }}>
                     <Button
@@ -384,10 +493,18 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
                         backgroundColor: '#1C1F23', 
                         border: '1px solid #3D4147',
                         color: '#9C9FA4',
+                        fontFamily: '"Space Grotesk", sans-serif',
+                        fontWeight: 600,
                         flex: 1,
                         '&:hover': {
                           backgroundColor: '#2A2D31',
-                          color: '#F2F1ED'
+                          color: '#F2F1ED',
+                          borderColor: '#5CC8FF',
+                        },
+                        '&.Mui-disabled': {
+                          backgroundColor: '#15171A',
+                          color: '#6B6E73',
+                          border: '1px solid #2A2D31'
                         }
                       }}
                     >
@@ -401,12 +518,16 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
                         endIcon={<ArrowForwardIcon />}
                         sx={{ 
                           flex: 2, 
-                          py: 1.2,
+                          py: 1.3,
                           background: 'linear-gradient(135deg, #5CC8FF 0%, #007ACC 100%)',
                           color: '#0A0B0D',
+                          fontFamily: '"Space Grotesk", sans-serif',
                           fontWeight: 700,
+                          fontSize: '0.95rem',
+                          boxShadow: '0 2px 10px rgba(92, 200, 255, 0.25)',
                           '&:hover': {
                             background: 'linear-gradient(135deg, #70D2FF 0%, #008AE6 100%)',
+                            boxShadow: '0 4px 18px rgba(92, 200, 255, 0.4)',
                           },
                           '&.Mui-disabled': {
                             background: '#1C1F23',
@@ -425,17 +546,25 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
                         endIcon={loading ? <CircularProgress size={20} sx={{ color: '#0A0B0D' }} /> : <ArrowForwardIcon />}
                         sx={{ 
                           flex: 2, 
-                          py: 1.2,
-                          background: 'linear-gradient(135deg, #FF5A46 0%, #FFB238 100%)',
+                          py: 1.3,
+                          background: '#FFB238',
                           color: '#0A0B0D',
+                          fontFamily: '"Space Grotesk", sans-serif',
                           fontWeight: 700,
+                          fontSize: '0.95rem',
+                          letterSpacing: '0.01em',
+                          boxShadow: '0 2px 12px rgba(255, 178, 56, 0.3)',
+                          border: '1px solid #FFB238',
                           '&:hover': {
-                            background: 'linear-gradient(135deg, #FF705E 0%, #FFC154 100%)',
+                            background: '#FFC154',
+                            borderColor: '#FFC154',
+                            boxShadow: '0 4px 20px rgba(255, 178, 56, 0.45)',
                           },
                           '&.Mui-disabled': {
                             background: '#1C1F23',
                             color: '#6B6E73',
-                            border: '1px solid #2A2D31'
+                            border: '1px solid #2A2D31',
+                            boxShadow: 'none',
                           }
                         }}
                       >
