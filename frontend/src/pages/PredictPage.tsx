@@ -143,7 +143,10 @@ export const PredictPage: React.FC<PredictPageProps> = ({ user }) => {
     // Dynamic multi-stage progress tracking
     let currentPct = 8;
     progressTimerRef.current = setInterval(() => {
-      currentPct += Math.floor(Math.random() * 6) + 3;
+      const randBuffer = new Uint32Array(1);
+      window.crypto.getRandomValues(randBuffer);
+      const increment = (randBuffer[0] % 6) + 3;
+      currentPct += increment;
       if (currentPct > 92) {
         currentPct = 92;
       }
