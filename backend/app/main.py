@@ -35,11 +35,13 @@ origins = [
     "http://localhost:3000",  # Common frontend port
     "http://127.0.0.1:5173",
     "http://127.0.0.1:3000",
+    "https://brain-tumor-detection-umber.vercel.app",
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
